@@ -74,4 +74,14 @@ void refreshData(WidgetRef ref) {
   ref.invalidate(categoriesProvider);
   ref.invalidate(monthSummaryProvider);
   ref.invalidate(categoryExpensesProvider);
+  ref.invalidate(rulesProvider);
 }
+
+/// 카테고리 자동 분류 규칙 전체.
+final rulesProvider = FutureProvider<List<CategoryRule>>(
+  (ref) => ref.watch(databaseProvider).rules(),
+);
+
+final sourceImageProvider = FutureProvider.family<SourceImage?, int>(
+  (ref, id) => ref.watch(databaseProvider).sourceImage(id),
+);

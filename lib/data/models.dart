@@ -106,3 +106,37 @@ class CategoryTotal {
     required this.count,
   });
 }
+
+/// 카테고리 자동 분류 규칙: 품목명·구매처에 [keyword]가 들어 있으면 [categoryId]로 분류.
+class CategoryRule {
+  final int? id;
+  final int categoryId;
+  final String keyword;
+
+  const CategoryRule({
+    this.id,
+    required this.categoryId,
+    required this.keyword,
+  });
+
+  factory CategoryRule.fromMap(Map<String, Object?> m) => CategoryRule(
+    id: m['id'] as int,
+    categoryId: m['category_id'] as int,
+    keyword: m['keyword'] as String,
+  );
+}
+
+/// 앱 폴더에 저장된 영수증/결제 화면 원본 사진.
+class SourceImage {
+  final int? id;
+  final String filePath;
+  final String? rawText;
+
+  const SourceImage({this.id, required this.filePath, this.rawText});
+
+  factory SourceImage.fromMap(Map<String, Object?> m) => SourceImage(
+    id: m['id'] as int,
+    filePath: m['file_path'] as String,
+    rawText: m['raw_text'] as String?,
+  );
+}

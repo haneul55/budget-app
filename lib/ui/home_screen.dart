@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../data/models.dart';
 import '../state/providers.dart';
@@ -7,6 +8,7 @@ import '../util/format.dart';
 import 'category_detail_screen.dart';
 import 'category_manage_screen.dart';
 import 'expense_form_screen.dart';
+import 'receipt_review_screen.dart';
 import 'widgets/category_avatar.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -51,10 +53,53 @@ class HomeScreen extends ConsumerWidget {
         data: (totals) => _SummaryList(totals: totals),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        icon: const Icon(Icons.add),
+        icon: const Icon(Icons.add_a_photo_outlined),
         label: const Text('내역 추가'),
-        onPressed: () => Navigator.of(context)
-            .push(MaterialPageRoute(builder: (_) => const ExpenseFormScreen())),
+        onPressed: () => _showAddOptions(context),
+      ),
+    );
+  }
+
+  Future<void> _showAddOptions(BuildContext context) async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('사진·캡처에서 불러오기'),
+              subtitle: const Text('영수증이나 결제 내역 화면 캡처'),
+              onTap: () => Navigator.pop(context, 'gallery'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('영수증 촬영하기'),
+              onTap: () => Navigator.pop(context, 'camera'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: const Text('직접 입력하기'),
+              onTap: () => Navigator.pop(context, 'manual'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (choice == null || !context.mounted) return;
+    if (choice == 'manual') {
+      Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => const ExpenseFormScreen()));
+      return;
+    }
+    final picked = await ImagePicker().pickImage(
+      source: choice == 'camera' ? ImageSource.camera : ImageSource.gallery,
+    );
+    if (picked == null || !context.mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ReceiptReviewScreen(imagePath: picked.path),
       ),
     );
   }

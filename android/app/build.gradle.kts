@@ -47,3 +47,8 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // 한글 글자 인식(ML Kit) 모델
+    implementation("com.google.mlkit:text-recognition-korean:16.0.1")
+}

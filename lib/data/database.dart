@@ -1,5 +1,6 @@
 import 'package:sqflite/sqflite.dart';
 
+import 'default_rules.dart';
 import 'models.dart';
 
 /// 처음 설치할 때 넣는 기본 카테고리 (모두 수정·삭제 가능).
@@ -48,7 +49,7 @@ class AppDatabase {
 
   final Database _db;
 
-  static const _version = 1;
+  static const _version = 2;
 
   /// [factory]와 [path]를 바꿔 끼우면 테스트에서 메모리 DB를 쓸 수 있다.
   static Future<AppDatabase> open({
@@ -63,6 +64,7 @@ class AppDatabase {
         version: _version,
         onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
         onCreate: _onCreate,
+        onUpgrade: _onUpgrade,
       ),
     );
     return AppDatabase._(db);
@@ -103,6 +105,30 @@ class AppDatabase {
     );
     for (final c in defaultCategories) {
       await db.insert('categories', c.toMap());
+    }
+    await _createRules(db);
+  }
+
+  static Future<void> _onUpgrade(Database db, int from, int to) async {
+    if (from < 2) await _createRules(db);
+  }
+
+  /// v2: 카테고리 자동 분류 키워드 테이블. 키워드 하나는 한 카테고리에만 속한다.
+  static Future<void> _createRules(Database db) async {
+    await db.execute('''
+      CREATE TABLE category_rules (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+        keyword TEXT NOT NULL UNIQUE
+      )''');
+    final cats = await db.query('categories');
+    for (final c in cats) {
+      for (final k in defaultRuleKeywords[c['name']] ?? const <String>[]) {
+        await db.insert('category_rules', {
+          'category_id': c['id'],
+          'keyword': k,
+        }, conflictAlgorithm: ConflictAlgorithm.ignore);
+      }
     }
   }
 
@@ -145,6 +171,70 @@ class AppDatabase {
           );
         }
       });
+
+  // ---- 분류 규칙 ----
+
+  Future<List<CategoryRule>> rules() async {
+    final rows = await _db.query('category_rules', orderBy: 'id');
+    return rows.map(CategoryRule.fromMap).toList();
+  }
+
+  Future<List<String>> keywordsFor(int categoryId) async {
+    final rows = await _db.query(
+      'category_rules',
+      columns: ['keyword'],
+      where: 'category_id = ?',
+      whereArgs: [categoryId],
+      orderBy: 'id',
+    );
+    return rows.map((r) => r['keyword'] as String).toList();
+  }
+
+  /// [categoryId]의 키워드를 [keywords]로 바꾼다. 다른 카테고리에 있던 같은 키워드는 이쪽으로 옮겨진다.
+  Future<void> setKeywords(int categoryId, List<String> keywords) =>
+      _db.transaction((txn) async {
+        await txn.delete(
+          'category_rules',
+          where: 'category_id = ?',
+          whereArgs: [categoryId],
+        );
+        for (final k in keywords.map(normalizeKeyword).toSet()) {
+          if (k.isEmpty) continue;
+          await txn.insert('category_rules', {
+            'category_id': categoryId,
+            'keyword': k,
+          }, conflictAlgorithm: ConflictAlgorithm.replace);
+        }
+      });
+
+  /// 사용자가 고른 카테고리를 기억한다: 다음부터 같은 품목명은 이 카테고리로 분류.
+  Future<void> learnKeyword(String keyword, int categoryId) async {
+    final k = normalizeKeyword(keyword);
+    if (k.length < 2) return;
+    await _db.insert('category_rules', {
+      'category_id': categoryId,
+      'keyword': k,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  // ---- 원본 사진 ----
+
+  Future<int> addSourceImage(String filePath, {String? rawText}) =>
+      _db.insert('source_images', {
+        'file_path': filePath,
+        'type': 'photo',
+        'raw_text': rawText,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+
+  Future<SourceImage?> sourceImage(int id) async {
+    final rows = await _db.query(
+      'source_images',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    return rows.isEmpty ? null : SourceImage.fromMap(rows.first);
+  }
 
   // ---- 결제 내역 ----
 
@@ -208,3 +298,7 @@ class AppDatabase {
     return (dateKey(start), dateKey(end));
   }
 }
+
+/// 키워드 비교용 정규화: 소문자, 앞뒤 공백 제거, 연속 공백 하나로.
+String normalizeKeyword(String s) =>
+    s.toLowerCase().trim().replaceAll(RegExp(r'\s+'), ' ');

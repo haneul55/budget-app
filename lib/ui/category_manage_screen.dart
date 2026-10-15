@@ -11,18 +11,22 @@ class CategoryManageScreen extends ConsumerWidget {
   const CategoryManageScreen({super.key});
 
   Future<void> _edit(BuildContext context, WidgetRef ref, [Category? c]) async {
-    final result = await showModalBottomSheet<Category>(
+    final db = ref.read(databaseProvider);
+    final keywords = c == null ? <String>[] : await db.keywordsFor(c.id!);
+    if (!context.mounted) return;
+    final result = await showModalBottomSheet<CategoryEditResult>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => CategoryEditSheet(initial: c),
+      builder: (_) => CategoryEditSheet(initial: c, initialKeywords: keywords),
     );
     if (result == null) return;
-    final db = ref.read(databaseProvider);
-    if (result.id == null) {
-      await db.addCategory(result);
+    var id = result.category.id;
+    if (id == null) {
+      id = await db.addCategory(result.category);
     } else {
-      await db.updateCategory(result);
+      await db.updateCategory(result.category);
     }
+    await db.setKeywords(id, result.keywords);
     refreshData(ref);
   }
 
@@ -101,11 +105,18 @@ class CategoryManageScreen extends ConsumerWidget {
   }
 }
 
-/// 카테고리 이름·아이콘·색상 편집 시트. 저장하면 수정된 [Category]를 pop 한다.
+typedef CategoryEditResult = ({Category category, List<String> keywords});
+
+/// 카테고리 이름·아이콘·색상·자동 분류 키워드 편집 시트. 저장하면 [CategoryEditResult]를 pop 한다.
 class CategoryEditSheet extends StatefulWidget {
-  const CategoryEditSheet({super.key, this.initial});
+  const CategoryEditSheet({
+    super.key,
+    this.initial,
+    this.initialKeywords = const [],
+  });
 
   final Category? initial;
+  final List<String> initialKeywords;
 
   @override
   State<CategoryEditSheet> createState() => _CategoryEditSheetState();
@@ -115,11 +126,21 @@ class _CategoryEditSheetState extends State<CategoryEditSheet> {
   late final _name = TextEditingController(text: widget.initial?.name);
   late String _iconKey = widget.initial?.iconKey ?? categoryIcons.keys.first;
   late int _color = widget.initial?.colorValue ?? categoryColors.first;
+  late final _keywords = [...widget.initialKeywords];
+  final _keywordInput = TextEditingController();
 
   @override
   void dispose() {
     _name.dispose();
+    _keywordInput.dispose();
     super.dispose();
+  }
+
+  void _addKeyword() {
+    final k = _keywordInput.text.trim().toLowerCase();
+    if (k.isEmpty || _keywords.contains(k)) return;
+    setState(() => _keywords.add(k));
+    _keywordInput.clear();
   }
 
   void _save() {
@@ -128,8 +149,15 @@ class _CategoryEditSheetState extends State<CategoryEditSheet> {
     final base =
         widget.initial ??
         Category(name: name, iconKey: _iconKey, colorValue: _color);
-    Navigator.of(context)
-        .pop(base.copyWith(name: name, iconKey: _iconKey, colorValue: _color));
+    _addKeyword();
+    Navigator.of(context).pop((
+      category: base.copyWith(
+        name: name,
+        iconKey: _iconKey,
+        colorValue: _color,
+      ),
+      keywords: _keywords,
+    ));
   }
 
   @override
@@ -213,6 +241,36 @@ class _CategoryEditSheetState extends State<CategoryEditSheet> {
                     ),
                 ],
               ),
+            ),
+            const SizedBox(height: 16),
+            Text('자동 분류 키워드', style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 4),
+            Text(
+              '사진에서 읽은 품목명이나 구매처에 이 단어가 있으면 이 카테고리로 분류돼요.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final k in _keywords)
+                  InputChip(
+                    label: Text(k),
+                    onDeleted: () => setState(() => _keywords.remove(k)),
+                  ),
+              ],
+            ),
+            TextField(
+              controller: _keywordInput,
+              decoration: InputDecoration(
+                hintText: '예) 스타벅스, 니트',
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.add),
+                  onPressed: _addKeyword,
+                ),
+              ),
+              onSubmitted: (_) => _addKeyword(),
             ),
             const SizedBox(height: 16),
             FilledButton(onPressed: _save, child: const Text('저장')),

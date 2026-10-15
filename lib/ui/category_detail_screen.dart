@@ -6,6 +6,7 @@ import '../state/providers.dart';
 import '../util/format.dart';
 import 'expense_form_screen.dart';
 import 'widgets/category_avatar.dart';
+import 'widgets/source_image_view.dart';
 
 /// 카테고리 안의 결제 내역 목록. [category]가 null이면 미분류.
 class CategoryDetailScreen extends ConsumerWidget {
@@ -52,6 +53,16 @@ class CategoryDetailScreen extends ConsumerWidget {
               }
               final e = list[i - 1];
               return ListTile(
+                leading: e.sourceImageId == null
+                    ? const SizedBox(
+                        width: 44,
+                        child: Icon(Icons.receipt_long_outlined),
+                      )
+                    : SourceImageView(
+                        sourceImageId: e.sourceImageId!,
+                        width: 44,
+                        height: 44,
+                      ),
                 title: Text(e.itemName),
                 subtitle: Text(
                   [

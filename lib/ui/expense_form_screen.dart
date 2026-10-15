@@ -3,9 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/models.dart';
+import '../recognition/category_classifier.dart';
 import '../state/providers.dart';
 import '../util/format.dart';
 import 'widgets/category_avatar.dart';
+import 'widgets/source_image_view.dart';
 
 /// 결제 내역 직접 입력/수정 화면. [initial]이 있으면 수정 모드.
 class ExpenseFormScreen extends ConsumerStatefulWidget {
@@ -56,6 +58,10 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
     );
     if (_editing) {
       await db.updateExpense(expense);
+      // 카테고리를 바꿨으면 다음부터 같은 품목은 바꾼 카테고리로 자동 분류
+      if (_categoryId != null && _categoryId != widget.initial!.categoryId) {
+        await db.learnKeyword(learningKeyword(expense.itemName), _categoryId!);
+      }
     } else {
       await db.addExpense(expense);
     }
@@ -116,6 +122,17 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            if (widget.initial?.sourceImageId != null) ...[
+              SourceImageView(
+                sourceImageId: widget.initial!.sourceImageId!,
+                height: 220,
+                width: double.infinity,
+              ),
+              const Padding(
+                padding: EdgeInsets.only(top: 4, bottom: 8),
+                child: Text('사진을 누르면 크게 볼 수 있어요', textAlign: TextAlign.center),
+              ),
+            ],
             TextFormField(
               controller: _name,
               decoration: const InputDecoration(
