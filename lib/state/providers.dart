@@ -78,6 +78,7 @@ void refreshData(WidgetRef ref) {
   ref.invalidate(rulesProvider);
   ref.invalidate(dailyTotalsProvider);
   ref.invalidate(monthlyTotalsProvider);
+  ref.invalidate(monthExpensesProvider);
 }
 
 /// 카테고리 자동 분류 규칙 전체.
@@ -101,3 +102,9 @@ final monthlyTotalsProvider =
       final db = ref.watch(databaseProvider);
       return db.monthlyTotals(ref.watch(selectedMonthProvider));
     });
+
+/// 선택한 달의 모든 내역 (달력 화면용).
+final monthExpensesProvider = FutureProvider<List<Expense>>((ref) {
+  final db = ref.watch(databaseProvider);
+  return db.expensesInMonth(ref.watch(selectedMonthProvider));
+});

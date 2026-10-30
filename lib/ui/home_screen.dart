@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../data/models.dart';
 import '../state/providers.dart';
 import '../util/format.dart';
+import 'calendar_screen.dart';
 import 'category_detail_screen.dart';
 import 'category_manage_screen.dart';
 import 'expense_form_screen.dart';
@@ -40,6 +41,13 @@ class HomeScreen extends ConsumerWidget {
         ),
         centerTitle: true,
         actions: [
+          IconButton(
+            tooltip: '달력',
+            icon: const Icon(Icons.calendar_month_outlined),
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const CalendarScreen())),
+          ),
           IconButton(
             tooltip: '월별 기록',
             icon: const Icon(Icons.bar_chart),
