@@ -53,7 +53,7 @@ void main() {
     );
     await settle();
 
-    await tester.tap(find.text('${today.day}'));
+    await tester.tap(find.byKey(ValueKey('day-${dateKey(today)}')));
     await tester.pumpAndSettle();
 
     expect(find.text('김밥'), findsOneWidget);

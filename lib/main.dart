@@ -5,6 +5,7 @@ import 'package:intl/date_symbol_data_local.dart';
 
 import 'data/database.dart';
 import 'state/providers.dart';
+import 'ui/app_theme.dart';
 import 'ui/home_screen.dart';
 
 Future<void> main() async {
@@ -27,15 +28,8 @@ class BudgetApp extends StatelessWidget {
     return MaterialApp(
       title: '사진 가계부',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorSchemeSeed: const Color(0xFF4DB6AC),
-        useMaterial3: true,
-      ),
-      darkTheme: ThemeData(
-        colorSchemeSeed: const Color(0xFF4DB6AC),
-        brightness: Brightness.dark,
-        useMaterial3: true,
-      ),
+      theme: buildAppTheme(),
+      themeMode: ThemeMode.light,
       locale: const Locale('ko', 'KR'),
       supportedLocales: const [Locale('ko', 'KR')],
       localizationsDelegates: const [

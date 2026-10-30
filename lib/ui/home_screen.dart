@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../data/models.dart';
 import '../state/providers.dart';
 import '../util/format.dart';
+import 'app_theme.dart';
 import 'calendar_screen.dart';
 import 'category_detail_screen.dart';
 import 'category_manage_screen.dart';
@@ -135,8 +136,13 @@ class _SummaryList extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.only(bottom: 96),
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+        Container(
+          margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
+          decoration: BoxDecoration(
+            color: AppColors.peach,
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -163,9 +169,7 @@ class _SummaryList extends StatelessWidget {
                 value: sum == 0 ? 0 : t.total / sum,
                 minHeight: 6,
                 borderRadius: BorderRadius.circular(3),
-                color: t.category == null
-                    ? Colors.grey
-                    : Color(t.category!.colorValue),
+                color: categoryColor(t.category),
                 backgroundColor: theme.colorScheme.surfaceContainerHighest,
               ),
             ),

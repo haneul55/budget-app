@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../state/providers.dart';
 import '../util/format.dart';
+import 'app_theme.dart';
 import 'widgets/spending_charts.dart';
 
 /// 최근 12개월의 월별 누적 금액. 달을 누르면 그 달로 이동한다.
@@ -96,7 +97,7 @@ class _MonthTile extends StatelessWidget {
         diffText = '지난달과 같아요';
       } else {
         diffText = '지난달보다 ${formatWon(diff.abs())} ${diff > 0 ? '더' : '덜'} 썼어요';
-        diffColor = diff > 0 ? theme.colorScheme.error : Colors.teal;
+        diffColor = diff > 0 ? AppColors.more : AppColors.less;
       }
     }
     return ListTile(

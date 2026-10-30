@@ -53,19 +53,36 @@ const Map<String, IconData> categoryIcons = {
 
 IconData iconFor(String key) => categoryIcons[key] ?? Icons.label;
 
-/// 카테고리 색상 팔레트.
+/// 카테고리 색상 팔레트 (따뜻한 파스텔 톤).
 const List<int> categoryColors = [
-  0xFFE57373,
-  0xFFF06292,
-  0xFFBA68C8,
-  0xFF9575CD,
-  0xFF7986CB,
-  0xFF64B5F6,
-  0xFF4DB6AC,
-  0xFF81C784,
-  0xFFDCE775,
-  0xFFFFD54F,
-  0xFFFFB74D,
-  0xFFA1887F,
-  0xFF90A4AE,
+  0xFFF4A28C,
+  0xFFE8A0B4,
+  0xFFD3A6C9,
+  0xFFB9A7D3,
+  0xFFA7B0D8,
+  0xFF9DB4D3,
+  0xFF9CCFC0,
+  0xFFA8C3A0,
+  0xFFC9C68E,
+  0xFFF2CF7E,
+  0xFFF6B98A,
+  0xFFB89A86,
+  0xFFB5AEA6,
 ];
+
+/// 예전 팔레트 색 → 지금 팔레트 색 (DB v3에서 기존 카테고리 색을 바꿀 때 사용).
+const Map<int, int> legacyColorMap = {
+  0xFFE57373: 0xFFF4A28C,
+  0xFFF06292: 0xFFE8A0B4,
+  0xFFBA68C8: 0xFFD3A6C9,
+  0xFF9575CD: 0xFFB9A7D3,
+  0xFF7986CB: 0xFFA7B0D8,
+  0xFF64B5F6: 0xFF9DB4D3,
+  0xFF4DB6AC: 0xFF9CCFC0,
+  0xFF81C784: 0xFFA8C3A0,
+  0xFFDCE775: 0xFFC9C68E,
+  0xFFFFD54F: 0xFFF2CF7E,
+  0xFFFFB74D: 0xFFF6B98A,
+  0xFFA1887F: 0xFFB89A86,
+  0xFF90A4AE: 0xFFB5AEA6,
+};

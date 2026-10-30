@@ -4,28 +4,29 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/models.dart';
 import '../state/providers.dart';
 import '../util/format.dart';
+import 'app_theme.dart';
 import 'expense_form_screen.dart';
 import 'widgets/category_avatar.dart';
 import 'widgets/spending_charts.dart';
 
 const _weekdays = ['일', '월', '화', '수', '목', '금', '토'];
 
-/// 달력 칸 목록. 일요일부터 시작하고, 1일 앞의 빈칸은 null.
-List<DateTime?> calendarDays(DateTime month) {
+/// 달력에 그릴 주(週) 목록. 일요일부터 시작하고, 앞뒤 빈칸은 이전·다음 달 날짜로 채운다.
+List<List<DateTime>> calendarWeeks(DateTime month) {
   final first = DateTime(month.year, month.month);
   final days = DateTime(month.year, month.month + 1, 0).day;
   final leading = first.weekday % 7; // 일요일 = 0
+  final cellCount = ((leading + days) / 7).ceil() * 7;
   return [
-    for (var i = 0; i < leading; i++) null,
-    for (var d = 1; d <= days; d++) DateTime(month.year, month.month, d),
+    for (var w = 0; w < cellCount ~/ 7; w++)
+      [
+        for (var d = 0; d < 7; d++)
+          DateTime(month.year, month.month, 1 - leading + w * 7 + d),
+      ],
   ];
 }
 
-Color? _weekdayColor(int column) => switch (column) {
-  0 => Colors.red.shade400,
-  6 => Colors.blue.shade400,
-  _ => null,
-};
+const _cellHeight = 78.0;
 
 /// 한 달 달력. 날짜 칸을 누르면 그 칸이 커지면서 그날 내역이 보인다.
 class CalendarScreen extends ConsumerWidget {
@@ -45,8 +46,9 @@ class CalendarScreen extends ConsumerWidget {
       byDay.putIfAbsent(e.spentAt.day, () => []).add(e);
     }
     final monthTotal = expenses.fold<int>(0, (s, e) => s + e.amount);
-    final cells = calendarDays(month);
+    final weeks = calendarWeeks(month);
     final theme = Theme.of(context);
+    const border = BorderSide(color: AppColors.line);
 
     return Scaffold(
       appBar: AppBar(
@@ -68,10 +70,10 @@ class CalendarScreen extends ConsumerWidget {
         centerTitle: true,
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(8, 8, 8, 24),
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+            padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
             child: Row(
               children: [
                 Text('이번 달 합계', style: theme.textTheme.titleSmall),
@@ -85,38 +87,62 @@ class CalendarScreen extends ConsumerWidget {
               ],
             ),
           ),
-          Row(
-            children: [
-              for (var i = 0; i < 7; i++)
-                Expanded(
-                  child: Center(
-                    child: Text(
-                      _weekdays[i],
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: _weekdayColor(i),
-                      ),
-                    ),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppColors.paper,
+              border: Border.all(color: AppColors.line),
+            ),
+            child: Column(
+              children: [
+                // 요일 머리줄
+                Container(
+                  color: AppColors.peach,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Row(
+                    children: [
+                      for (final w in _weekdays)
+                        Expanded(
+                          child: Center(
+                            child: Text(
+                              w,
+                              style: theme.textTheme.labelLarge?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          GridView.count(
-            crossAxisCount: 7,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            childAspectRatio: 0.72,
-            children: [
-              for (var i = 0; i < cells.length; i++)
-                cells[i] == null
-                    ? const SizedBox.shrink()
-                    : _DayCell(
-                        day: cells[i]!,
-                        column: i % 7,
-                        expenses: byDay[cells[i]!.day] ?? const [],
-                        categories: categories,
-                      ),
-            ],
+                for (var w = 0; w < weeks.length; w++)
+                  Row(
+                    children: [
+                      for (var d = 0; d < 7; d++)
+                        Expanded(
+                          child: Container(
+                            height: _cellHeight,
+                            decoration: BoxDecoration(
+                              border: Border(
+                                top: border,
+                                left: d == 0 ? BorderSide.none : border,
+                              ),
+                            ),
+                            child: weeks[w][d].month != month.month
+                                ? _OtherMonthCell(day: weeks[w][d])
+                                : _DayCell(
+                                    key: ValueKey('day-${dateKey(weeks[w][d])}'),
+                                    day: weeks[w][d],
+                                    expenses:
+                                        byDay[weeks[w][d].day] ?? const [],
+                                    categories: categories,
+                                  ),
+                          ),
+                        ),
+                    ],
+                  ),
+              ],
+            ),
           ),
         ],
       ),
@@ -124,16 +150,37 @@ class CalendarScreen extends ConsumerWidget {
   }
 }
 
+/// 앞뒤 달 날짜: 흐린 숫자만.
+class _OtherMonthCell extends StatelessWidget {
+  const _OtherMonthCell({required this.day});
+
+  final DateTime day;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.topRight,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(4, 6, 6, 4),
+        child: Text(
+          '${day.day}',
+          style: Theme.of(context).textTheme.labelMedium
+              ?.copyWith(color: AppColors.textFaint),
+        ),
+      ),
+    );
+  }
+}
+
 class _DayCell extends StatelessWidget {
   const _DayCell({
+    super.key,
     required this.day,
-    required this.column,
     required this.expenses,
     required this.categories,
   });
 
   final DateTime day;
-  final int column;
   final List<Expense> expenses;
   final Map<int?, Category> categories;
 
@@ -146,67 +193,64 @@ class _DayCell extends StatelessWidget {
     final total = expenses.fold<int>(0, (s, e) => s + e.amount);
     // 그날 쓴 카테고리 색 점 (최대 3개)
     final dotColors = <Color>{
-      for (final e in expenses)
-        categories[e.categoryId] == null
-            ? Colors.grey
-            : Color(categories[e.categoryId]!.colorValue),
+      for (final e in expenses) categoryColor(categories[e.categoryId]),
     }.take(3);
 
-    return Padding(
-      padding: const EdgeInsets.all(2),
-      child: Material(
-        color: total > 0
-            ? theme.colorScheme.primaryContainer.withValues(alpha: 0.45)
-            : theme.colorScheme.surfaceContainerLow,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: isToday
-              ? BorderSide(color: theme.colorScheme.primary, width: 1.5)
-              : BorderSide.none,
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: () => _openDay(context, day),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-            child: Column(
-              children: [
-                Text(
-                  '${day.day}',
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: _weekdayColor(column),
-                    fontWeight: isToday ? FontWeight.bold : null,
-                  ),
+    return Material(
+      color: isToday ? AppColors.selectedCell : Colors.transparent,
+      child: InkWell(
+        onTap: () => _openDay(context, day),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(3, 6, 6, 5),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                '${day.day}',
+                textAlign: TextAlign.right,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: AppColors.textSub,
+                  fontWeight: isToday ? FontWeight.bold : null,
                 ),
-                const Spacer(),
-                if (total > 0)
-                  FittedBox(
+              ),
+              const Spacer(),
+              if (total > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 3,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.peachLight,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
                     child: Text(
                       compactWon(total),
                       style: theme.textTheme.labelSmall?.copyWith(
+                        color: AppColors.peachText,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
-                const SizedBox(height: 3),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    for (final c in dotColors)
-                      Container(
-                        width: 5,
-                        height: 5,
-                        margin: const EdgeInsets.symmetric(horizontal: 1),
-                        decoration: BoxDecoration(
-                          color: c,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                  ],
                 ),
-                const SizedBox(height: 2),
-              ],
-            ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  for (final c in dotColors)
+                    Container(
+                      width: 5,
+                      height: 5,
+                      margin: const EdgeInsets.only(left: 2),
+                      decoration: BoxDecoration(
+                        color: c,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
@@ -230,7 +274,7 @@ void _openDay(BuildContext cellContext, DateTime day) {
     context: cellContext,
     barrierDismissible: true,
     barrierLabel: '닫기',
-    barrierColor: Colors.black45,
+    barrierColor: AppColors.text.withValues(alpha: 0.35),
     transitionDuration: const Duration(milliseconds: 260),
     pageBuilder: (_, _, _) => _DayDetail(day: day),
     transitionBuilder: (_, animation, _, child) {
@@ -274,6 +318,7 @@ class _DayDetail extends ConsumerWidget {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Material(
+            color: AppColors.paper,
             borderRadius: BorderRadius.circular(20),
             clipBehavior: Clip.antiAlias,
             child: ConstrainedBox(
@@ -284,8 +329,9 @@ class _DayDetail extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 8, 4),
+                  Container(
+                    color: AppColors.peach,
+                    padding: const EdgeInsets.fromLTRB(20, 8, 8, 8),
                     child: Row(
                       children: [
                         Text(formatDay(day), style: theme.textTheme.titleLarge),
@@ -298,7 +344,6 @@ class _DayDetail extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  const Divider(height: 1),
                   if (expenses.isEmpty)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 40),
@@ -339,7 +384,10 @@ class _DayDetail extends ConsumerWidget {
                       ),
                     ),
                   Container(
-                    color: theme.colorScheme.surfaceContainerHighest,
+                    decoration: const BoxDecoration(
+                      color: AppColors.peachLight,
+                      border: Border(top: BorderSide(color: AppColors.line)),
+                    ),
                     padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
                     child: Row(
                       children: [

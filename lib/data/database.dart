@@ -1,5 +1,6 @@
 import 'package:sqflite/sqflite.dart';
 
+import 'category_icons.dart';
 import 'default_rules.dart';
 import 'models.dart';
 
@@ -8,40 +9,40 @@ const defaultCategories = [
   Category(
     name: '식비',
     iconKey: 'restaurant',
-    colorValue: 0xFFE57373,
+    colorValue: 0xFFF4A28C,
     sortOrder: 0,
   ),
   Category(
     name: '카페/간식',
     iconKey: 'local_cafe',
-    colorValue: 0xFFA1887F,
+    colorValue: 0xFFB89A86,
     sortOrder: 1,
   ),
   Category(
     name: '쇼핑',
     iconKey: 'shopping_bag',
-    colorValue: 0xFFF06292,
+    colorValue: 0xFFE8A0B4,
     sortOrder: 2,
   ),
   Category(
     name: '생활/마트',
     iconKey: 'shopping_cart',
-    colorValue: 0xFF4DB6AC,
+    colorValue: 0xFF9CCFC0,
     sortOrder: 3,
   ),
   Category(
     name: '교통',
     iconKey: 'directions_bus',
-    colorValue: 0xFF64B5F6,
+    colorValue: 0xFF9DB4D3,
     sortOrder: 4,
   ),
   Category(
     name: '문화/여가',
     iconKey: 'movie',
-    colorValue: 0xFF9575CD,
+    colorValue: 0xFFB9A7D3,
     sortOrder: 5,
   ),
-  Category(name: '기타', iconKey: 'more', colorValue: 0xFF90A4AE, sortOrder: 6),
+  Category(name: '기타', iconKey: 'more', colorValue: 0xFFB5AEA6, sortOrder: 6),
 ];
 
 class AppDatabase {
@@ -49,7 +50,7 @@ class AppDatabase {
 
   final Database _db;
 
-  static const _version = 2;
+  static const _version = 3;
 
   /// [factory]와 [path]를 바꿔 끼우면 테스트에서 메모리 DB를 쓸 수 있다.
   static Future<AppDatabase> open({
@@ -111,6 +112,18 @@ class AppDatabase {
 
   static Future<void> _onUpgrade(Database db, int from, int to) async {
     if (from < 2) await _createRules(db);
+    if (from < 3) {
+      // v3: 앱 디자인을 따뜻한 톤으로 바꾸면서 카테고리 색도 새 팔레트로 옮긴다
+      for (final MapEntry(key: oldColor, value: newColor)
+          in legacyColorMap.entries) {
+        await db.update(
+          'categories',
+          {'color_value': newColor},
+          where: 'color_value = ?',
+          whereArgs: [oldColor],
+        );
+      }
+    }
   }
 
   /// v2: 카테고리 자동 분류 키워드 테이블. 키워드 하나는 한 카테고리에만 속한다.

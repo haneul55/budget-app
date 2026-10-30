@@ -27,7 +27,7 @@ void main() {
           await db.insert('categories', {
             'name': '교통',
             'icon_key': 'subway',
-            'color_value': 1,
+            'color_value': 0xFF64B5F6, // 예전 팔레트의 파란색
             'sort_order': 0,
           });
           await db.insert('categories', {
@@ -45,6 +45,9 @@ void main() {
     final cats = await db.categories();
     expect(await db.keywordsFor(cats.first.id!), contains('택시'));
     expect(await db.keywordsFor(cats.last.id!), isEmpty);
+    // v3: 예전 팔레트 색은 따뜻한 새 팔레트 색으로 바뀐다
+    expect(cats.first.colorValue, 0xFF9DB4D3);
+    expect(cats.last.colorValue, 1);
     await db.close();
     await dir.delete(recursive: true);
   });
