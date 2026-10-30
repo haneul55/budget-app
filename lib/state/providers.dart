@@ -17,6 +17,7 @@ class SelectedMonth extends Notifier<DateTime> {
 
   void previous() => state = DateTime(state.year, state.month - 1);
   void next() => state = DateTime(state.year, state.month + 1);
+  void select(DateTime month) => state = DateTime(month.year, month.month);
 }
 
 final selectedMonthProvider = NotifierProvider<SelectedMonth, DateTime>(
@@ -75,6 +76,8 @@ void refreshData(WidgetRef ref) {
   ref.invalidate(monthSummaryProvider);
   ref.invalidate(categoryExpensesProvider);
   ref.invalidate(rulesProvider);
+  ref.invalidate(dailyTotalsProvider);
+  ref.invalidate(monthlyTotalsProvider);
 }
 
 /// 카테고리 자동 분류 규칙 전체.
@@ -85,3 +88,16 @@ final rulesProvider = FutureProvider<List<CategoryRule>>(
 final sourceImageProvider = FutureProvider.family<SourceImage?, int>(
   (ref, id) => ref.watch(databaseProvider).sourceImage(id),
 );
+
+/// 선택한 달의 날짜별 합계(1일부터 말일까지).
+final dailyTotalsProvider = FutureProvider<List<int>>((ref) {
+  final db = ref.watch(databaseProvider);
+  return db.dailyTotals(ref.watch(selectedMonthProvider));
+});
+
+/// 선택한 달까지 최근 12개월의 월 합계.
+final monthlyTotalsProvider =
+    FutureProvider<List<({DateTime month, int total})>>((ref) {
+      final db = ref.watch(databaseProvider);
+      return db.monthlyTotals(ref.watch(selectedMonthProvider));
+    });

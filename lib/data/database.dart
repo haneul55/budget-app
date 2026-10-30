@@ -292,6 +292,52 @@ class AppDatabase {
     };
   }
 
+  /// [month]의 날짜별 합계: 1일부터 말일까지 순서대로(쓴 돈이 없는 날은 0).
+  Future<List<int>> dailyTotals(DateTime month) async {
+    final (start, end) = _monthRange(month);
+    final rows = await _db.rawQuery(
+      '''
+      SELECT spent_at, SUM(amount) AS total
+      FROM expenses WHERE spent_at >= ? AND spent_at < ?
+      GROUP BY spent_at''',
+      [start, end],
+    );
+    final days = DateTime(month.year, month.month + 1, 0).day;
+    final out = List<int>.filled(days, 0);
+    for (final r in rows) {
+      final day = DateTime.parse(r['spent_at'] as String).day;
+      out[day - 1] = r['total'] as int;
+    }
+    return out;
+  }
+
+  /// [lastMonth]까지 [count]개월의 월 합계를 오래된 달부터 순서대로.
+  Future<List<({DateTime month, int total})>> monthlyTotals(
+    DateTime lastMonth, {
+    int count = 12,
+  }) async {
+    final first = DateTime(lastMonth.year, lastMonth.month - count + 1);
+    final end = DateTime(lastMonth.year, lastMonth.month + 1);
+    final rows = await _db.rawQuery(
+      '''
+      SELECT substr(spent_at, 1, 7) AS ym, SUM(amount) AS total
+      FROM expenses WHERE spent_at >= ? AND spent_at < ?
+      GROUP BY ym''',
+      [dateKey(first), dateKey(end)],
+    );
+    final byMonth = {
+      for (final r in rows) r['ym'] as String: r['total'] as int,
+    };
+    return [
+      for (var i = 0; i < count; i++)
+        () {
+          final m = DateTime(first.year, first.month + i);
+          final key = dateKey(m).substring(0, 7);
+          return (month: m, total: byMonth[key] ?? 0);
+        }(),
+    ];
+  }
+
   static (String, String) _monthRange(DateTime month) {
     final start = DateTime(month.year, month.month);
     final end = DateTime(month.year, month.month + 1);

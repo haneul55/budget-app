@@ -8,8 +8,10 @@ import '../util/format.dart';
 import 'category_detail_screen.dart';
 import 'category_manage_screen.dart';
 import 'expense_form_screen.dart';
+import 'monthly_history_screen.dart';
 import 'receipt_review_screen.dart';
 import 'widgets/category_avatar.dart';
+import 'widgets/spending_charts.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -38,6 +40,13 @@ class HomeScreen extends ConsumerWidget {
         ),
         centerTitle: true,
         actions: [
+          IconButton(
+            tooltip: '월별 기록',
+            icon: const Icon(Icons.bar_chart),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const MonthlyHistoryScreen()),
+            ),
+          ),
           IconButton(
             tooltip: '카테고리 관리',
             icon: const Icon(Icons.tune),
@@ -134,6 +143,7 @@ class _SummaryList extends StatelessWidget {
             ],
           ),
         ),
+        const _DailyChartCard(),
         const Divider(),
         for (final t in totals)
           ListTile(
@@ -166,6 +176,54 @@ class _SummaryList extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// 이번 달 날짜별 쓴 돈 꺾은선 그래프 (일별 / 누적 전환).
+class _DailyChartCard extends ConsumerStatefulWidget {
+  const _DailyChartCard();
+
+  @override
+  ConsumerState<_DailyChartCard> createState() => _DailyChartCardState();
+}
+
+class _DailyChartCardState extends ConsumerState<_DailyChartCard> {
+  bool _cumulative = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final month = ref.watch(selectedMonthProvider);
+    final daily = ref.watch(dailyTotalsProvider).value;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          SegmentedButton<bool>(
+            showSelectedIcon: false,
+            style: const ButtonStyle(visualDensity: VisualDensity.compact),
+            segments: const [
+              ButtonSegment(value: false, label: Text('일별')),
+              ButtonSegment(value: true, label: Text('누적')),
+            ],
+            selected: {_cumulative},
+            onSelectionChanged: (v) => setState(() => _cumulative = v.first),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 180,
+            child: daily == null
+                ? const SizedBox.shrink()
+                : DailyLineChart(
+                    month: month,
+                    dailyTotals: daily,
+                    cumulative: _cumulative,
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }
