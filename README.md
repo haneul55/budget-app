@@ -8,6 +8,12 @@
 
 <br>
 
+## 동작 구조
+
+<p align="center"><img src="docs/app_flow.png" width="900" alt="사진 가계부 동작 구조"></p>
+
+<br>
+
 ## 지금 되는 것 (1단계)
 
 - 홈: 월 선택, 이번 달 총지출, 카테고리별 누적 금액과 비율
