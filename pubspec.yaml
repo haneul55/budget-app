@@ -98,3 +98,11 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# sqlite3는 테스트(sqflite_common_ffi)에서만 쓴다. 앱 빌드 때 sqlite3 바이너리를
+# 인터넷에서 내려받거나 컴파일하지 않도록 시스템 라이브러리를 쓰게 한다.
+# (내려받기가 멈추면 빌드가 몇십 분씩 걸리거나 .lock 오류로 실패함)
+hooks:
+  user_defines:
+    sqlite3:
+      source: system
