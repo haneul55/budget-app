@@ -149,6 +149,10 @@ class _ReceiptReviewScreenState extends ConsumerState<ReceiptReviewScreen> {
       }
     }
     refreshData(ref);
+    // 저장한 날짜의 달력으로 이동해서 그날 내역을 열어 준다
+    ref.read(selectedMonthProvider.notifier).select(_date);
+    ref.read(currentTabProvider.notifier).go(AppTab.calendar);
+    ref.read(openDayRequestProvider.notifier).request(_date);
     if (!mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     Navigator.of(context).pop();
