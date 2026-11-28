@@ -4,7 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../recognition/ai_classifier.dart';
 import '../state/providers.dart';
 
-/// AI 자동 분류 서버 주소와 앱 비밀번호를 넣는 화면.
+enum _AiMode { apiKey, server }
+
+/// AI 자동 분류 설정 화면.
+/// - API 키 직접: 폰에 Anthropic API 키를 저장하고 앱이 Claude를 바로 부른다 (시험용).
+/// - 내 서버: proxy 폴더의 Cloudflare Worker 주소와 앱 비밀번호를 넣는다.
 /// 비워 두면 AI를 쓰지 않고 지금처럼 키워드 규칙으로만 분류한다.
 class AiSettingsScreen extends ConsumerStatefulWidget {
   const AiSettingsScreen({super.key});
@@ -14,9 +18,11 @@ class AiSettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
+  final _apiKey = TextEditingController();
   final _url = TextEditingController();
   final _token = TextEditingController();
-  bool _hideToken = true;
+  _AiMode _mode = _AiMode.apiKey;
+  bool _hideSecret = true;
   bool _busy = false;
   String? _result;
   bool _resultOk = false;
@@ -24,38 +30,92 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
   @override
   void initState() {
     super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
     final db = ref.read(databaseProvider);
-    db.setting(AiServerConfig.urlKey).then((v) => _url.text = v ?? '');
-    db.setting(AiServerConfig.tokenKey).then((v) => _token.text = v ?? '');
+    String? key;
+    try {
+      key = await ref
+          .read(secureStorageProvider)
+          .read(key: DirectCategoryAi.apiKeyStorageKey);
+    } catch (_) {}
+    final url = await db.setting(AiServerConfig.urlKey);
+    final token = await db.setting(AiServerConfig.tokenKey);
+    if (!mounted) return;
+    setState(() {
+      _apiKey.text = key ?? '';
+      _url.text = url ?? '';
+      _token.text = token ?? '';
+      if ((key ?? '').isEmpty && url != null) _mode = _AiMode.server;
+    });
   }
 
   @override
   void dispose() {
+    _apiKey.dispose();
     _url.dispose();
     _token.dispose();
     super.dispose();
   }
 
+  CategoryAi? _fromInputs() => switch (_mode) {
+    _AiMode.apiKey when _apiKey.text.trim().isNotEmpty => DirectCategoryAi(
+      _apiKey.text.trim(),
+    ),
+    _AiMode.server
+        when _url.text.trim().isNotEmpty && _token.text.trim().isNotEmpty =>
+      AiCategoryClassifier(
+        AiServerConfig(url: _url.text.trim(), token: _token.text.trim()),
+      ),
+    _ => null,
+  };
+
   Future<void> _save() async {
     final db = ref.read(databaseProvider);
-    await db.setSetting(AiServerConfig.urlKey, _url.text);
-    await db.setSetting(AiServerConfig.tokenKey, _token.text);
-    ref.invalidate(aiConfigProvider);
+    final storage = ref.read(secureStorageProvider);
+    try {
+      if (_mode == _AiMode.apiKey && _apiKey.text.trim().isNotEmpty) {
+        await storage.write(
+          key: DirectCategoryAi.apiKeyStorageKey,
+          value: _apiKey.text.trim(),
+        );
+      } else {
+        await storage.delete(key: DirectCategoryAi.apiKeyStorageKey);
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('API 키를 폰에 저장하지 못했어요')));
+      }
+      return;
+    }
+    final server = _mode == _AiMode.server;
+    await db.setSetting(AiServerConfig.urlKey, server ? _url.text : null);
+    await db.setSetting(AiServerConfig.tokenKey, server ? _token.text : null);
+    ref.invalidate(categoryAiProvider);
     if (!mounted) return;
-    final on = _url.text.trim().isNotEmpty && _token.text.trim().isNotEmpty;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(on ? 'AI 자동 분류를 켰어요' : 'AI 자동 분류를 껐어요 (키워드 규칙만 사용)'),
+        content: Text(
+          _fromInputs() != null
+              ? 'AI 자동 분류를 켰어요'
+              : 'AI 자동 분류를 껐어요 (키워드 규칙만 사용)',
+        ),
       ),
     );
     Navigator.of(context).pop();
   }
 
-  /// 예시 품목 하나를 보내서 서버가 제대로 답하는지 확인한다.
+  /// 예시 품목 하나를 보내서 제대로 답하는지 확인한다.
   Future<void> _test() async {
-    if (_url.text.trim().isEmpty || _token.text.trim().isEmpty) {
+    final ai = _fromInputs();
+    if (ai == null) {
       setState(() {
-        _result = '서버 주소와 앱 비밀번호를 모두 넣어 주세요.';
+        _result = _mode == _AiMode.apiKey
+            ? 'API 키를 넣어 주세요.'
+            : '서버 주소와 앱 비밀번호를 모두 넣어 주세요.';
         _resultOk = false;
       });
       return;
@@ -69,9 +129,9 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
     String message;
     var ok = false;
     try {
-      final picks = await AiCategoryClassifier(
-        AiServerConfig(url: _url.text, token: _token.text.trim()),
-      ).classifyOrThrow([(name: sample, merchant: null)], categories);
+      final picks = await ai.classifyOrThrow([
+        (name: sample, merchant: null),
+      ], categories);
       final picked = categories.where((c) => c.id == picks.first).firstOrNull;
       ok = true;
       message = picked == null
@@ -88,6 +148,22 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
     });
   }
 
+  Widget _secretField(TextEditingController c, String label, {String? hint}) =>
+      TextField(
+        controller: c,
+        obscureText: _hideSecret,
+        autocorrect: false,
+        enableSuggestions: false,
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hint,
+          suffixIcon: IconButton(
+            icon: Icon(_hideSecret ? Icons.visibility : Icons.visibility_off),
+            onPressed: () => setState(() => _hideSecret = !_hideSecret),
+          ),
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -103,31 +179,40 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
             '인터넷이 안 되거나 아래를 비워 두면 지금처럼 키워드 규칙으로만 분류해요.',
             style: theme.textTheme.bodyMedium,
           ),
-          const SizedBox(height: 20),
-          TextField(
-            controller: _url,
-            keyboardType: TextInputType.url,
-            autocorrect: false,
-            decoration: const InputDecoration(
-              labelText: '서버 주소',
-              hintText: 'https://budget-ai-proxy.내이름.workers.dev',
-            ),
+          const SizedBox(height: 16),
+          SegmentedButton<_AiMode>(
+            segments: const [
+              ButtonSegment(value: _AiMode.apiKey, label: Text('API 키 직접')),
+              ButtonSegment(value: _AiMode.server, label: Text('내 서버')),
+            ],
+            selected: {_mode},
+            onSelectionChanged: (s) => setState(() {
+              _mode = s.first;
+              _result = null;
+            }),
           ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _token,
-            obscureText: _hideToken,
-            autocorrect: false,
-            decoration: InputDecoration(
-              labelText: '앱 비밀번호 (서버에 넣은 APP_TOKEN)',
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _hideToken ? Icons.visibility : Icons.visibility_off,
-                ),
-                onPressed: () => setState(() => _hideToken = !_hideToken),
+          const SizedBox(height: 16),
+          if (_mode == _AiMode.apiKey) ...[
+            _secretField(_apiKey, 'Anthropic API 키', hint: 'sk-ant-...'),
+            const SizedBox(height: 8),
+            Text(
+              '키는 이 폰의 안전한 저장소(아이폰 키체인)에만 저장돼요. '
+              '나 혼자 쓰는 시험용 방법이라, 다른 사람에게 앱을 나눠 줄 때는 "내 서버" 방식을 써 주세요.',
+              style: theme.textTheme.bodySmall,
+            ),
+          ] else ...[
+            TextField(
+              controller: _url,
+              keyboardType: TextInputType.url,
+              autocorrect: false,
+              decoration: const InputDecoration(
+                labelText: '서버 주소',
+                hintText: 'https://budget-ai-proxy.내이름.workers.dev',
               ),
             ),
-          ),
+            const SizedBox(height: 12),
+            _secretField(_token, '앱 비밀번호 (서버에 넣은 APP_TOKEN)'),
+          ],
           const SizedBox(height: 16),
           OutlinedButton.icon(
             icon: _busy

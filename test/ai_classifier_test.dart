@@ -76,4 +76,78 @@ void main() {
       [null],
     );
   });
+
+  test('API 키 직접: Anthropic API를 부르고 JSON 답을 id로 바꾼다', () async {
+    late http.Request sent;
+    final client = MockClient((req) async {
+      sent = req;
+      return http.Response.bytes(
+        utf8.encode(
+          jsonEncode({
+            'stop_reason': 'end_turn',
+            'content': [
+              {
+                'type': 'text',
+                'text': jsonEncode({
+                  'results': [
+                    {'index': 1, 'category': '모름'},
+                    {'index': 0, 'category': '쇼핑'},
+                  ],
+                }),
+              },
+            ],
+          }),
+        ),
+        200,
+      );
+    });
+    final picks = await DirectCategoryAi('sk-ant-x', client: client).classify([
+      (name: '가디건', merchant: '에이블리'),
+      (name: '???', merchant: null),
+    ], categories);
+    expect(picks, [2, null]);
+    expect(sent.url.toString(), 'https://api.anthropic.com/v1/messages');
+    expect(sent.headers['x-api-key'], 'sk-ant-x');
+    final body = jsonDecode(sent.body) as Map;
+    expect(body['model'], 'claude-haiku-5-5');
+    expect(body.containsKey('temperature'), isFalse);
+    final schema = body['output_config']['format']['schema'] as Map;
+    expect(
+      schema['properties']['results']['items']['properties']['category']['enum'],
+      ['모름', '식비', '쇼핑'],
+    );
+    expect(body['messages'][0]['content'], contains('0. 가디건 (구매처: 에이블리)'));
+  });
+
+  test('API 키 직접: 키가 틀리면 알려 주고, 거절이면 미분류', () async {
+    final bad = MockClient(
+      (_) async => http.Response(
+        '{"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}}',
+        401,
+      ),
+    );
+    await expectLater(
+      DirectCategoryAi(
+        'x',
+        client: bad,
+      ).classifyOrThrow([(name: '니트', merchant: null)], categories),
+      throwsA(
+        isA<AiUnavailable>().having(
+          (e) => e.message,
+          'message',
+          contains('API 키'),
+        ),
+      ),
+    );
+    final refusal = MockClient(
+      (_) async => http.Response('{"stop_reason":"refusal","content":[]}', 200),
+    );
+    expect(
+      await DirectCategoryAi(
+        'x',
+        client: refusal,
+      ).classify([(name: '니트', merchant: null)], categories),
+      [null],
+    );
+  });
 }

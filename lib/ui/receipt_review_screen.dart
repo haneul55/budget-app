@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/image_store.dart';
 import '../data/models.dart';
-import '../recognition/ai_classifier.dart';
 import '../recognition/category_classifier.dart';
 import '../recognition/ocr_service.dart';
 import '../recognition/receipt_parser.dart';
@@ -115,17 +114,17 @@ class _ReceiptReviewScreenState extends ConsumerState<ReceiptReviewScreen> {
 
   /// 규칙으로 못 고른 품목만 AI 서버에 물어본다. 설정이 없거나 실패하면 미분류 그대로.
   Future<void> _askAi() async {
-    final config = await ref.read(aiConfigProvider.future);
+    final ai = await ref.read(categoryAiProvider.future);
     final categories = await ref.read(categoriesProvider.future);
     final pending = [
       for (final d in _drafts)
         if (d.categoryId == null && d.name.text.trim().isNotEmpty) d,
     ];
-    if (config == null || pending.isEmpty || categories.isEmpty || !mounted) {
+    if (ai == null || pending.isEmpty || categories.isEmpty || !mounted) {
       return;
     }
     setState(() => _aiPending = true);
-    final picks = await AiCategoryClassifier(config).classify([
+    final picks = await ai.classify([
       for (final d in pending) (name: d.name.text.trim(), merchant: _merchant),
     ], categories);
     if (!mounted) return;

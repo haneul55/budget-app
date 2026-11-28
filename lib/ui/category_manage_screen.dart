@@ -57,7 +57,7 @@ class CategoryManageScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final categories = ref.watch(categoriesProvider);
-    final aiOn = ref.watch(aiConfigProvider).value != null;
+    final aiOn = ref.watch(categoryAiProvider).value != null;
 
     return Scaffold(
       body: categories.when(
