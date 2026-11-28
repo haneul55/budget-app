@@ -109,11 +109,13 @@ final dailyTotalsProvider = FutureProvider<List<int>>((ref) {
   return db.dailyTotals(ref.watch(selectedMonthProvider));
 });
 
-/// 선택한 달까지 최근 12개월의 월 합계.
+/// 선택한 달이 속한 해의 1월~12월 월 합계.
 final monthlyTotalsProvider =
     FutureProvider<List<({DateTime month, int total})>>((ref) {
       final db = ref.watch(databaseProvider);
-      return db.monthlyTotals(ref.watch(selectedMonthProvider));
+      // 고른 달이 속한 해의 1월~12월 (지금 달 기준이면 올해)
+      final year = ref.watch(selectedMonthProvider.select((m) => m.year));
+      return db.monthlyTotals(DateTime(year, 12));
     });
 
 /// 선택한 달의 모든 내역 (달력 화면용).

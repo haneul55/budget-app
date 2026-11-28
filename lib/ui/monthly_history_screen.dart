@@ -7,7 +7,7 @@ import 'app_theme.dart';
 import 'widgets/month_picker.dart';
 import 'widgets/spending_charts.dart';
 
-/// 최근 12개월 월별 누적 금액. 아래의 달 선택 칸을 누르면 달 목록이 펼쳐진다.
+/// 고른 달이 속한 해(1~12월)의 월별 누적 금액. 아래의 달 선택 칸을 누르면 달 목록이 펼쳐진다.
 class MonthlyHistoryScreen extends ConsumerStatefulWidget {
   const MonthlyHistoryScreen({super.key});
 
@@ -52,7 +52,7 @@ class _MonthlyHistoryScreenState extends ConsumerState<MonthlyHistoryScreen> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
                 child: Text(
-                  '최근 12개월 · 월 평균 ${formatWon(average)}',
+                  '${selected.year}년 · 월 평균 ${formatWon(average)}',
                   style: theme.textTheme.titleSmall,
                 ),
               ),

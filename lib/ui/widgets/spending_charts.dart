@@ -217,10 +217,7 @@ class MonthlyBarChart extends StatelessWidget {
                 final m = months[v.toInt()].month;
                 return SideTitleWidget(
                   meta: meta,
-                  child: Text(
-                    m.month == 1 ? '${m.year % 100}.1' : '${m.month}월',
-                    style: labelStyle,
-                  ),
+                  child: Text('${m.month}월', style: labelStyle),
                 );
               },
             ),
