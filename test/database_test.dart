@@ -15,6 +15,14 @@ void main() {
   });
   tearDown(() => db.close());
 
+  test('설정을 저장하고, 비우면 지운다', () async {
+    expect(await db.setting('ai_server_url'), isNull);
+    await db.setSetting('ai_server_url', ' https://a.workers.dev ');
+    expect(await db.setting('ai_server_url'), 'https://a.workers.dev');
+    await db.setSetting('ai_server_url', '');
+    expect(await db.setting('ai_server_url'), isNull);
+  });
+
   test('기본 카테고리 7개가 들어간다', () async {
     final cats = await db.categories();
     expect(cats.map((c) => c.name), defaultCategories.map((c) => c.name));

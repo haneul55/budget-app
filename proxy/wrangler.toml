@@ -1,0 +1,6 @@
+# Cloudflare Worker 설정. 키(ANTHROPIC_API_KEY)와 앱 비밀번호(APP_TOKEN)는
+# 여기에 쓰지 말고 `npx wrangler secret put` 으로 따로 넣는다.
+name = "budget-ai-proxy"
+main = "src/index.ts"
+compatibility_date = "2026-11-01"
+compatibility_flags = ["nodejs_compat"]

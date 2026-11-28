@@ -48,6 +48,9 @@ void main() {
     // v3: 예전 팔레트 색은 따뜻한 새 팔레트 색으로 바뀐다
     expect(cats.first.colorValue, 0xFF9DB4D3);
     expect(cats.last.colorValue, 1);
+    // v4: 설정 표가 생긴다
+    await db.setSetting('k', 'v');
+    expect(await db.setting('k'), 'v');
     await db.close();
     await dir.delete(recursive: true);
   });

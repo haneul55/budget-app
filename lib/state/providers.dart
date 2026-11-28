@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/database.dart';
 import '../data/models.dart';
+import '../recognition/ai_classifier.dart';
 
 /// main()에서 열린 DB로 override 한다.
 final databaseProvider = Provider<AppDatabase>(
@@ -132,3 +133,12 @@ final pickerMonthsProvider =
           .watch(databaseProvider)
           .monthlyTotals(DateTime(now.year, now.month), count: 24);
     });
+
+/// AI 분류 서버 설정. 주소와 비밀번호가 모두 있어야 켜진다(없으면 null → 키워드 규칙만 사용).
+final aiConfigProvider = FutureProvider<AiServerConfig?>((ref) async {
+  final db = ref.watch(databaseProvider);
+  final url = await db.setting(AiServerConfig.urlKey);
+  final token = await db.setting(AiServerConfig.tokenKey);
+  if (url == null || token == null) return null;
+  return AiServerConfig(url: url, token: token);
+});

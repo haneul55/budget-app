@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/image_store.dart';
 import '../data/models.dart';
+import '../recognition/ai_classifier.dart';
 import '../recognition/category_classifier.dart';
 import '../recognition/ocr_service.dart';
 import '../recognition/receipt_parser.dart';
@@ -31,7 +32,12 @@ class _Draft {
 
   final TextEditingController name;
   final TextEditingController amount;
+
+  /// 키워드 규칙이 고른 카테고리.
   final int? suggestedCategoryId;
+
+  /// 규칙으로 못 고른 품목에 AI가 고른 카테고리.
+  int? aiCategoryId;
   int? categoryId;
 
   void dispose() {
@@ -43,6 +49,7 @@ class _Draft {
 class _ReceiptReviewScreenState extends ConsumerState<ReceiptReviewScreen> {
   bool _loading = true;
   bool _saving = false;
+  bool _aiPending = false;
   String? _notice;
   String? _rawText;
   String? _merchant;
@@ -103,6 +110,35 @@ class _ReceiptReviewScreenState extends ConsumerState<ReceiptReviewScreen> {
       }
       _loading = false;
     });
+    await _askAi();
+  }
+
+  /// 규칙으로 못 고른 품목만 AI 서버에 물어본다. 설정이 없거나 실패하면 미분류 그대로.
+  Future<void> _askAi() async {
+    final config = await ref.read(aiConfigProvider.future);
+    final categories = await ref.read(categoriesProvider.future);
+    final pending = [
+      for (final d in _drafts)
+        if (d.categoryId == null && d.name.text.trim().isNotEmpty) d,
+    ];
+    if (config == null || pending.isEmpty || categories.isEmpty || !mounted) {
+      return;
+    }
+    setState(() => _aiPending = true);
+    final picks = await AiCategoryClassifier(config).classify([
+      for (final d in pending) (name: d.name.text.trim(), merchant: _merchant),
+    ], categories);
+    if (!mounted) return;
+    setState(() {
+      _aiPending = false;
+      for (var i = 0; i < pending.length; i++) {
+        final d = pending[i];
+        // 그사이 사용자가 직접 고른 항목은 건드리지 않는다
+        if (picks[i] == null || d.categoryId != null) continue;
+        d.aiCategoryId = picks[i];
+        d.categoryId = picks[i];
+      }
+    });
   }
 
   Future<void> _pickDate() async {
@@ -142,7 +178,8 @@ class _ReceiptReviewScreenState extends ConsumerState<ReceiptReviewScreen> {
           merchant: _merchant,
         ),
       );
-      // 자동 분류와 다르게 직접 고른 카테고리는 기억해서 다음부터 그대로 분류
+      // 규칙과 다르게 정해진 카테고리(직접 고쳤거나 AI가 고른 것)는 기억해서
+      // 다음부터 같은 품목은 AI에 묻지 않고 바로 분류
       if (d.categoryId != null && d.categoryId != d.suggestedCategoryId) {
         await db.learnKeyword(learningKeyword(name), d.categoryId!);
         learned++;
@@ -156,7 +193,7 @@ class _ReceiptReviewScreenState extends ConsumerState<ReceiptReviewScreen> {
       SnackBar(
         content: Text(
           '${_drafts.length}건을 저장했어요'
-          '${learned > 0 ? ' · 고친 카테고리 $learned개는 다음부터 자동으로 분류돼요' : ''}',
+          '${learned > 0 ? ' · 새로 정한 카테고리 $learned개는 다음부터 바로 분류돼요' : ''}',
         ),
       ),
     );
@@ -234,6 +271,20 @@ class _ReceiptReviewScreenState extends ConsumerState<ReceiptReviewScreen> {
                       ),
                     ),
                   ),
+                if (_aiPending)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 12),
+                    child: Row(
+                      children: [
+                        SizedBox.square(
+                          dimension: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        SizedBox(width: 8),
+                        Text('AI가 카테고리를 고르고 있어요'),
+                      ],
+                    ),
+                  ),
                 const SizedBox(height: 8),
                 for (var i = 0; i < _drafts.length; i++)
                   _DraftCard(
@@ -292,6 +343,8 @@ class _DraftCard extends StatelessWidget {
     final auto =
         draft.categoryId != null &&
         draft.categoryId == draft.suggestedCategoryId;
+    final byAi =
+        draft.categoryId != null && draft.categoryId == draft.aiCategoryId;
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 6),
       child: Padding(
@@ -330,7 +383,11 @@ class _DraftCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              auto ? '카테고리 (자동 분류됨, 눌러서 바꿀 수 있어요)' : '카테고리',
+              auto
+                  ? '카테고리 (자동 분류됨, 눌러서 바꿀 수 있어요)'
+                  : byAi
+                  ? '카테고리 (AI가 골랐어요, 눌러서 바꿀 수 있어요)'
+                  : '카테고리',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 4),
