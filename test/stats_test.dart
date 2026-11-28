@@ -45,6 +45,7 @@ void main() {
   test('그래프 축 금액 표기', () {
     expect(compactWon(500), '500');
     expect(compactWon(2000), '2천');
+    expect(compactWon(2500), '2.5천');
     expect(compactWon(15000), '1.5만');
     expect(compactWon(20000), '2만');
     expect(compactWon(250000), '25만');

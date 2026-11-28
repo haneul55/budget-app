@@ -14,7 +14,10 @@ String compactWon(num v) {
       '만',
     );
   }
-  if (v >= 1000) return '${(v / 1000).round()}천';
+  if (v >= 1000) {
+    final k = (v / 100).round() / 10; // 2500 → 2.5천
+    return '${k == k.roundToDouble() ? k.round() : k}천';
+  }
   return v.round().toString();
 }
 
@@ -64,7 +67,7 @@ class DailyLineChart extends StatelessWidget {
       values.add(cumulative ? running : dailyTotals[i]);
     }
     final axis = _niceAxis(values.fold(0, math.max));
-    final gridColor = theme.colorScheme.outlineVariant.withValues(alpha: 0.5);
+    const gridColor = Color(0xFFCFCBC6);
     final labelStyle = theme.textTheme.labelSmall?.copyWith(
       color: theme.colorScheme.onSurfaceVariant,
     );
@@ -79,7 +82,7 @@ class DailyLineChart extends StatelessWidget {
           drawVerticalLine: false,
           horizontalInterval: axis.interval,
           getDrawingHorizontalLine: (_) =>
-              FlLine(color: gridColor, strokeWidth: 1),
+              FlLine(color: gridColor, strokeWidth: 1, dashArray: const [4, 4]),
         ),
         borderData: FlBorderData(show: false),
         titlesData: FlTitlesData(
@@ -175,7 +178,7 @@ class MonthlyBarChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final axis = _niceAxis(months.fold(0, (m, e) => math.max(m, e.total)));
-    final gridColor = theme.colorScheme.outlineVariant.withValues(alpha: 0.5);
+    const gridColor = Color(0xFFCFCBC6);
     final labelStyle = theme.textTheme.labelSmall?.copyWith(
       color: theme.colorScheme.onSurfaceVariant,
     );
@@ -192,7 +195,7 @@ class MonthlyBarChart extends StatelessWidget {
           drawVerticalLine: false,
           horizontalInterval: axis.interval,
           getDrawingHorizontalLine: (_) =>
-              FlLine(color: gridColor, strokeWidth: 1),
+              FlLine(color: gridColor, strokeWidth: 1, dashArray: const [4, 4]),
         ),
         borderData: FlBorderData(show: false),
         titlesData: FlTitlesData(
