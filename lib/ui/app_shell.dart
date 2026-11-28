@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../state/providers.dart';
+import '../util/format.dart';
 import 'app_theme.dart';
 import 'calendar_screen.dart';
 import 'category_manage_screen.dart';
@@ -75,11 +76,22 @@ class _AppShellState extends ConsumerState<AppShell> {
                   icon: const Icon(Icons.chevron_left),
                   onPressed: notifier.previous,
                 ),
-                MonthDropdownButton(
-                  month: month,
-                  expanded: _pickerOpen,
-                  onTap: () => setState(() => _pickerOpen = !_pickerOpen),
-                ),
+                // 월별 기록 화면은 화면 안에 달 선택 칸이 있으니 위에서는 화살표로만 바꾼다
+                if (current == AppTab.history)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Text(
+                      formatMonth(month),
+                      style: Theme.of(context).textTheme.titleLarge
+                          ?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                  )
+                else
+                  MonthDropdownButton(
+                    month: month,
+                    expanded: _pickerOpen,
+                    onTap: () => setState(() => _pickerOpen = !_pickerOpen),
+                  ),
                 IconButton(
                   tooltip: '다음 달',
                   visualDensity: VisualDensity.compact,
