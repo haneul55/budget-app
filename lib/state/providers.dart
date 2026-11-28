@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../data/database.dart';
 import '../data/models.dart';
+import '../recognition/ai_classifier.dart';
 
 /// main()에서 열린 DB로 override 한다.
 final databaseProvider = Provider<AppDatabase>(
@@ -145,3 +147,29 @@ final pickerMonthsProvider =
           .watch(databaseProvider)
           .monthlyTotals(DateTime(now.year, now.month), count: 24);
     });
+
+/// API 키처럼 민감한 값을 폰의 안전한 저장소(iOS 키체인, 안드로이드 암호화 저장소)에 둔다.
+final secureStorageProvider = Provider<FlutterSecureStorage>(
+  (ref) => const FlutterSecureStorage(),
+);
+
+/// 지금 설정된 AI 분류 방법. 없으면 null → 키워드 규칙만 사용.
+/// 폰에 넣은 API 키가 있으면 그걸 먼저 쓰고, 없으면 내 서버 설정을 쓴다.
+final categoryAiProvider = FutureProvider<CategoryAi?>((ref) async {
+  String? apiKey;
+  try {
+    apiKey = await ref
+        .watch(secureStorageProvider)
+        .read(key: DirectCategoryAi.apiKeyStorageKey);
+  } catch (_) {
+    // 저장소를 못 읽으면 키가 없는 것으로 본다
+  }
+  if (apiKey != null && apiKey.trim().isNotEmpty) {
+    return DirectCategoryAi(apiKey);
+  }
+  final db = ref.watch(databaseProvider);
+  final url = await db.setting(AiServerConfig.urlKey);
+  final token = await db.setting(AiServerConfig.tokenKey);
+  if (url == null || token == null) return null;
+  return AiCategoryClassifier(AiServerConfig(url: url, token: token));
+});

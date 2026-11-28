@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/category_icons.dart';
 import '../data/models.dart';
 import '../state/providers.dart';
+import 'ai_settings_screen.dart';
 import 'widgets/category_avatar.dart';
 
 /// 카테고리 추가·수정·삭제·순서 변경.
@@ -56,6 +57,7 @@ class CategoryManageScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final categories = ref.watch(categoriesProvider);
+    final aiOn = ref.watch(categoryAiProvider).value != null;
 
     return Scaffold(
       body: categories.when(
@@ -63,6 +65,20 @@ class CategoryManageScreen extends ConsumerWidget {
         error: (e, _) => Center(child: Text('불러오지 못했어요: $e')),
         data: (list) => ReorderableListView.builder(
           padding: const EdgeInsets.only(bottom: 96),
+          header: Card(
+            margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: ListTile(
+              leading: const Icon(Icons.auto_awesome_outlined),
+              title: const Text('AI 자동 분류'),
+              subtitle: Text(
+                aiOn ? '켜짐 · 키워드로 못 찾은 품목은 AI가 골라요' : '꺼짐 · 키워드 규칙으로만 분류해요',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const AiSettingsScreen()),
+              ),
+            ),
+          ),
           itemCount: list.length,
           onReorderItem: (oldIndex, newIndex) async {
             final ids = list.map((c) => c.id!).toList();

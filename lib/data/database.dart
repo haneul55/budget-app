@@ -50,7 +50,7 @@ class AppDatabase {
 
   final Database _db;
 
-  static const _version = 3;
+  static const _version = 4;
 
   /// [factory]와 [path]를 바꿔 끼우면 테스트에서 메모리 DB를 쓸 수 있다.
   static Future<AppDatabase> open({
@@ -108,6 +108,7 @@ class AppDatabase {
       await db.insert('categories', c.toMap());
     }
     await _createRules(db);
+    await _createSettings(db);
   }
 
   static Future<void> _onUpgrade(Database db, int from, int to) async {
@@ -124,7 +125,15 @@ class AppDatabase {
         );
       }
     }
+    if (from < 4) await _createSettings(db);
   }
+
+  /// v4: 앱 설정(이름-값). AI 분류 서버 주소 등을 저장한다.
+  static Future<void> _createSettings(Database db) => db.execute('''
+      CREATE TABLE settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      )''');
 
   /// v2: 카테고리 자동 분류 키워드 테이블. 키워드 하나는 한 카테고리에만 속한다.
   static Future<void> _createRules(Database db) async {
@@ -228,6 +237,29 @@ class AppDatabase {
       'category_id': categoryId,
       'keyword': k,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  // ---- 설정 ----
+
+  Future<String?> setting(String key) async {
+    final rows = await _db.query(
+      'settings',
+      where: 'key = ?',
+      whereArgs: [key],
+    );
+    return rows.isEmpty ? null : rows.first['value'] as String;
+  }
+
+  /// [value]가 비어 있으면 설정을 지운다.
+  Future<void> setSetting(String key, String? value) async {
+    if (value == null || value.trim().isEmpty) {
+      await _db.delete('settings', where: 'key = ?', whereArgs: [key]);
+    } else {
+      await _db.insert('settings', {
+        'key': key,
+        'value': value.trim(),
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+    }
   }
 
   // ---- 원본 사진 ----

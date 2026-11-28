@@ -1,0 +1,64 @@
+# 아이폰용 앱 파일(.ipa)을 GitHub의 Mac 컴퓨터에서 만들어 주는 작업입니다.
+# Mac이 없어도 됩니다. 결과물은 서명되지 않은 파일이라,
+# Windows에서 Sideloadly로 본인 Apple ID 서명을 해서 아이폰에 설치합니다.
+# 자세한 방법: docs/iphone-test.md
+name: iOS 빌드
+
+on:
+  workflow_dispatch: # Actions 탭에서 "Run workflow" 버튼으로 직접 실행
+  push:
+    branches: [main]
+    paths:
+      - 'lib/**'
+      - 'ios/**'
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
+      - '.github/workflows/ios-build.yml'
+  pull_request:
+    paths:
+      - 'lib/**'
+      - 'ios/**'
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
+      - '.github/workflows/ios-build.yml'
+
+concurrency:
+  group: ios-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: true
+
+      - name: 패키지 받기
+        run: flutter pub get
+
+      - name: 테스트
+        run: flutter test
+
+      - name: iOS 앱 만들기 (서명 없이)
+        run: flutter build ios --release --no-codesign
+
+      - name: .ipa 파일로 묶기
+        run: |
+          mkdir -p build/ipa/Payload
+          cp -R build/ios/iphoneos/Runner.app build/ipa/Payload/
+          cd build/ipa
+          zip -qry budget_app-unsigned.ipa Payload
+          ls -lh budget_app-unsigned.ipa
+
+      - name: 결과물 올리기
+        uses: actions/upload-artifact@v4
+        with:
+          name: budget_app-ios-unsigned
+          path: build/ipa/budget_app-unsigned.ipa
+          retention-days: 30
