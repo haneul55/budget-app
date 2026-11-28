@@ -24,6 +24,18 @@ final selectedMonthProvider = NotifierProvider<SelectedMonth, DateTime>(
   SelectedMonth.new,
 );
 
+/// 위쪽 고정 바에서 고르는 화면.
+enum AppTab { home, calendar, history, categories }
+
+class CurrentTab extends Notifier<AppTab> {
+  @override
+  AppTab build() => AppTab.home;
+
+  void go(AppTab tab) => state = tab;
+}
+
+final currentTabProvider = NotifierProvider<CurrentTab, AppTab>(CurrentTab.new);
+
 final categoriesProvider = FutureProvider<List<Category>>(
   (ref) => ref.watch(databaseProvider).categories(),
 );

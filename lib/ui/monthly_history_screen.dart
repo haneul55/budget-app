@@ -38,7 +38,6 @@ class _MonthlyHistoryScreenState extends ConsumerState<MonthlyHistoryScreen> {
     final previous = totalOf(DateTime(selected.year, selected.month - 1));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('월별 기록')),
       body: monthly.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('불러오지 못했어요: $e')),
@@ -130,7 +129,8 @@ class _MonthlyHistoryScreenState extends ConsumerState<MonthlyHistoryScreen> {
                 month: selected,
                 total: total,
                 previous: previous,
-                onOpen: () => Navigator.of(context).pop(),
+                onOpen: () =>
+                    ref.read(currentTabProvider.notifier).go(AppTab.home),
               ),
             ],
           );

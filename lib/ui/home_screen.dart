@@ -6,11 +6,8 @@ import '../data/models.dart';
 import '../state/providers.dart';
 import '../util/format.dart';
 import 'app_theme.dart';
-import 'calendar_screen.dart';
 import 'category_detail_screen.dart';
-import 'category_manage_screen.dart';
 import 'expense_form_screen.dart';
-import 'monthly_history_screen.dart';
 import 'receipt_review_screen.dart';
 import 'widgets/category_avatar.dart';
 import 'widgets/spending_charts.dart';
@@ -20,51 +17,9 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final month = ref.watch(selectedMonthProvider);
     final summary = ref.watch(monthSummaryProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.chevron_left),
-              onPressed: () =>
-                  ref.read(selectedMonthProvider.notifier).previous(),
-            ),
-            Text(formatMonth(month)),
-            IconButton(
-              icon: const Icon(Icons.chevron_right),
-              onPressed: () => ref.read(selectedMonthProvider.notifier).next(),
-            ),
-          ],
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            tooltip: '달력',
-            icon: const Icon(Icons.calendar_month_outlined),
-            onPressed: () => Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => const CalendarScreen())),
-          ),
-          IconButton(
-            tooltip: '월별 기록',
-            icon: const Icon(Icons.bar_chart),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const MonthlyHistoryScreen()),
-            ),
-          ),
-          IconButton(
-            tooltip: '카테고리 관리',
-            icon: const Icon(Icons.tune),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const CategoryManageScreen()),
-            ),
-          ),
-        ],
-      ),
       body: summary.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('불러오지 못했어요: $e')),

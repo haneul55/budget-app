@@ -58,7 +58,6 @@ class CategoryManageScreen extends ConsumerWidget {
     final categories = ref.watch(categoriesProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('카테고리 관리')),
       body: categories.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('불러오지 못했어요: $e')),

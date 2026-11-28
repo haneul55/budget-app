@@ -7,7 +7,6 @@ import '../util/format.dart';
 import 'app_theme.dart';
 import 'expense_form_screen.dart';
 import 'widgets/category_avatar.dart';
-import 'widgets/month_picker.dart';
 import 'widgets/pressable.dart';
 
 const _weekdays = ['일', '월', '화', '수', '목', '금', '토'];
@@ -34,21 +33,13 @@ Color? _weekdayColor(int column) => switch (column) {
 };
 
 /// 한 달 달력. 화면을 꽉 채우고, 날짜 칸을 누르면 그 칸이 커지면서 그날 내역이 보인다.
-class CalendarScreen extends ConsumerStatefulWidget {
+class CalendarScreen extends ConsumerWidget {
   const CalendarScreen({super.key});
 
   @override
-  ConsumerState<CalendarScreen> createState() => _CalendarScreenState();
-}
-
-class _CalendarScreenState extends ConsumerState<CalendarScreen> {
-  bool _pickerOpen = false;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final month = ref.watch(selectedMonthProvider);
     final expenses = ref.watch(monthExpensesProvider).value ?? const [];
-    final pickerMonths = ref.watch(pickerMonthsProvider).value ?? const [];
     // 날짜를 눌렀을 때 바로 카테고리 이름이 보이도록 미리 불러 둔다
     ref.watch(categoriesProvider);
     final theme = Theme.of(context);
@@ -59,43 +50,10 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     }
     final monthTotal = expenses.fold<int>(0, (s, e) => s + e.amount);
     final weeks = calendarWeeks(month);
-    final notifier = ref.read(selectedMonthProvider.notifier);
 
     return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              tooltip: '이전 달',
-              icon: const Icon(Icons.chevron_left),
-              onPressed: notifier.previous,
-            ),
-            MonthDropdownButton(
-              month: month,
-              expanded: _pickerOpen,
-              onTap: () => setState(() => _pickerOpen = !_pickerOpen),
-            ),
-            IconButton(
-              tooltip: '다음 달',
-              icon: const Icon(Icons.chevron_right),
-              onPressed: notifier.next,
-            ),
-          ],
-        ),
-      ),
       body: Column(
         children: [
-          MonthPickerPanel(
-            open: _pickerOpen,
-            months: pickerMonths,
-            selected: month,
-            onSelected: (m) {
-              notifier.select(m);
-              setState(() => _pickerOpen = false);
-            },
-          ),
           Expanded(
             child: Stack(
               children: [
@@ -186,16 +144,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                     ),
                   ],
                 ),
-                // 달 목록이 열려 있으면 바깥을 눌러 닫는다
-                if (_pickerOpen)
-                  Positioned.fill(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _pickerOpen = false),
-                      child: ColoredBox(
-                        color: AppColors.text.withValues(alpha: 0.12),
-                      ),
-                    ),
-                  ),
               ],
             ),
           ),

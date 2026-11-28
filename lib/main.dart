@@ -6,7 +6,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'data/database.dart';
 import 'state/providers.dart';
 import 'ui/app_theme.dart';
-import 'ui/home_screen.dart';
+import 'ui/app_shell.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,7 +37,7 @@ class BudgetApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      home: const HomeScreen(),
+      home: const AppShell(),
     );
   }
 }
