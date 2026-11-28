@@ -1,20 +1,23 @@
 import 'package:flutter/material.dart';
 
-/// 앱 전체 색. 크림색 바탕, 피치색 포인트, 진한 회색 글자의 따뜻한 조합.
+/// 앱 전체 색. 흰 바탕, 피치색 포인트, 진한 회색 글자의 조합.
 abstract final class AppColors {
-  static const cream = Color(0xFFFFFBF0); // 바탕
-  static const paper = Color(0xFFFFFDF8); // 카드·칸
+  static const cream = Color(0xFFFFFFFF); // 바탕 (흰색)
+  static const paper = Color(0xFFFFFFFF); // 카드·칸
   static const peach = Color(0xFFFFCBB0); // 머리줄, 선택 표시
   static const peachDeep = Color(0xFFF2A07B); // 버튼, 그래프 선
   static const peachLight = Color(0xFFFFEADF); // 금액 칩, 합계 줄
   static const peachText = Color(0xFFD27F5C); // 피치 칩 위 글자
-  static const line = Color(0xFFDEDAD2); // 칸 테두리, 구분선
-  static const selectedCell = Color(0xFFF2EEE8); // 오늘·선택한 칸
+  static const line = Color(0xFFECEAE7); // 칸 테두리, 구분선
+  static const selectedCell = Color(0xFFF3F2F0); // 오늘·선택한 칸
   static const text = Color(0xFF4A4744); // 본문 글자 (검정 대신 진한 회색)
   static const textSub = Color(0xFF7D7873); // 보조 글자
   static const textFaint = Color(0xFFB4AEA7); // 다른 달 날짜 등
   static const more = Color(0xFFD9765F); // 지난달보다 더 씀
   static const less = Color(0xFF7FA37A); // 지난달보다 덜 씀
+  static const pressed = Color(0xFFEFEDEA); // 칸을 누르고 있을 때 음영
+  static const sunday = Color(0xFFE0705F);
+  static const saturday = Color(0xFF5F8FD0);
   static const uncategorized = Color(0xFFB5AEA6); // 미분류
 }
 
@@ -35,8 +38,8 @@ ThemeData buildAppTheme() {
         onSurfaceVariant: AppColors.textSub,
         surfaceContainerLowest: AppColors.paper,
         surfaceContainerLow: AppColors.paper,
-        surfaceContainer: const Color(0xFFFBF5EA),
-        surfaceContainerHigh: const Color(0xFFF6EFE4),
+        surfaceContainer: const Color(0xFFF8F7F5),
+        surfaceContainerHigh: const Color(0xFFF5F4F2),
         surfaceContainerHighest: AppColors.selectedCell,
         outline: AppColors.line,
         outlineVariant: AppColors.line,

@@ -4,22 +4,38 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../state/providers.dart';
 import '../util/format.dart';
 import 'app_theme.dart';
+import 'widgets/month_picker.dart';
 import 'widgets/spending_charts.dart';
 
-/// 최근 12개월의 월별 누적 금액. 달을 누르면 그 달로 이동한다.
-class MonthlyHistoryScreen extends ConsumerWidget {
+/// 최근 12개월 월별 누적 금액. 아래의 달 선택 칸을 누르면 달 목록이 펼쳐진다.
+class MonthlyHistoryScreen extends ConsumerStatefulWidget {
   const MonthlyHistoryScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MonthlyHistoryScreen> createState() =>
+      _MonthlyHistoryScreenState();
+}
+
+class _MonthlyHistoryScreenState extends ConsumerState<MonthlyHistoryScreen> {
+  bool _pickerOpen = false;
+
+  @override
+  Widget build(BuildContext context) {
     final selected = ref.watch(selectedMonthProvider);
     final monthly = ref.watch(monthlyTotalsProvider);
+    final pickerMonths = ref.watch(pickerMonthsProvider).value ?? const [];
     final theme = Theme.of(context);
+    final notifier = ref.read(selectedMonthProvider.notifier);
 
-    void open(DateTime m) {
-      ref.read(selectedMonthProvider.notifier).select(m);
-      Navigator.of(context).pop();
+    int totalOf(DateTime m) {
+      for (final e in pickerMonths) {
+        if (e.month.year == m.year && e.month.month == m.month) return e.total;
+      }
+      return 0;
     }
+
+    final total = totalOf(selected);
+    final previous = totalOf(DateTime(selected.year, selected.month - 1));
 
     return Scaffold(
       appBar: AppBar(title: const Text('월별 기록')),
@@ -48,21 +64,74 @@ class MonthlyHistoryScreen extends ConsumerWidget {
                   child: MonthlyBarChart(
                     months: months,
                     selected: selected,
-                    onTapMonth: open,
+                    onTapMonth: notifier.select,
                   ),
                 ),
               ),
-              const Divider(height: 32),
-              for (var i = months.length - 1; i >= 0; i--)
-                _MonthTile(
-                  month: months[i].month,
-                  total: months[i].total,
-                  previous: i > 0 ? months[i - 1].total : null,
-                  selected:
-                      months[i].month.year == selected.year &&
-                      months[i].month.month == selected.month,
-                  onTap: () => open(months[i].month),
+              const SizedBox(height: 24),
+              // 달 선택 칸: 누르면 아래로 달 목록이 펼쳐진다
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: _pickerOpen ? AppColors.peachDeep : AppColors.line,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Column(
+                    children: [
+                      InkWell(
+                        onTap: () => setState(() => _pickerOpen = !_pickerOpen),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+                          child: Row(
+                            children: [
+                              Text(
+                                '달 선택',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: AppColors.textSub,
+                                ),
+                              ),
+                              const Spacer(),
+                              Text(
+                                formatMonth(selected),
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              AnimatedRotation(
+                                turns: _pickerOpen ? 0.5 : 0,
+                                duration: const Duration(milliseconds: 200),
+                                child: const Icon(Icons.keyboard_arrow_down),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      MonthPickerPanel(
+                        open: _pickerOpen,
+                        months: pickerMonths,
+                        selected: selected,
+                        maxHeight: 280,
+                        onSelected: (m) {
+                          notifier.select(m);
+                          setState(() => _pickerOpen = false);
+                        },
+                      ),
+                    ],
+                  ),
                 ),
+              ),
+              const SizedBox(height: 16),
+              _MonthSummary(
+                month: selected,
+                total: total,
+                previous: previous,
+                onOpen: () => Navigator.of(context).pop(),
+              ),
             ],
           );
         },
@@ -71,28 +140,27 @@ class MonthlyHistoryScreen extends ConsumerWidget {
   }
 }
 
-class _MonthTile extends StatelessWidget {
-  const _MonthTile({
+/// 고른 달의 합계와 지난달 대비 증감.
+class _MonthSummary extends StatelessWidget {
+  const _MonthSummary({
     required this.month,
     required this.total,
     required this.previous,
-    required this.selected,
-    required this.onTap,
+    required this.onOpen,
   });
 
   final DateTime month;
   final int total;
-  final int? previous;
-  final bool selected;
-  final VoidCallback onTap;
+  final int previous;
+  final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     String? diffText;
     Color? diffColor;
-    if (previous != null && previous! > 0 && total > 0) {
-      final diff = total - previous!;
+    if (previous > 0 && total > 0) {
+      final diff = total - previous;
       if (diff == 0) {
         diffText = '지난달과 같아요';
       } else {
@@ -100,17 +168,42 @@ class _MonthTile extends StatelessWidget {
         diffColor = diff > 0 ? AppColors.more : AppColors.less;
       }
     }
-    return ListTile(
-      selected: selected,
-      title: Text(formatMonth(month)),
-      subtitle: diffText == null
-          ? null
-          : Text(diffText, style: TextStyle(color: diffColor)),
-      trailing: Text(
-        total == 0 ? '-' : formatWon(total),
-        style: theme.textTheme.titleSmall,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
+        decoration: BoxDecoration(
+          color: AppColors.peachLight.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${formatMonth(month)}에 쓴 돈',
+              style: theme.textTheme.titleSmall,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              formatWon(total),
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            if (diffText != null) ...[
+              const SizedBox(height: 4),
+              Text(diffText, style: TextStyle(color: diffColor)),
+            ],
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: onOpen,
+                child: const Text('이 달 내역 보기'),
+              ),
+            ),
+          ],
+        ),
       ),
-      onTap: onTap,
     );
   }
 }

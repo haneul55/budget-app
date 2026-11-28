@@ -79,6 +79,7 @@ void refreshData(WidgetRef ref) {
   ref.invalidate(dailyTotalsProvider);
   ref.invalidate(monthlyTotalsProvider);
   ref.invalidate(monthExpensesProvider);
+  ref.invalidate(pickerMonthsProvider);
 }
 
 /// 카테고리 자동 분류 규칙 전체.
@@ -108,3 +109,12 @@ final monthExpensesProvider = FutureProvider<List<Expense>>((ref) {
   final db = ref.watch(databaseProvider);
   return db.expensesInMonth(ref.watch(selectedMonthProvider));
 });
+
+/// 월 선택 목록용: 이번 달까지 최근 24개월의 월 합계 (선택한 달과 상관없이 고정).
+final pickerMonthsProvider =
+    FutureProvider<List<({DateTime month, int total})>>((ref) {
+      final now = DateTime.now();
+      return ref
+          .watch(databaseProvider)
+          .monthlyTotals(DateTime(now.year, now.month), count: 24);
+    });

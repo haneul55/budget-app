@@ -7,7 +7,8 @@ import '../util/format.dart';
 import 'app_theme.dart';
 import 'expense_form_screen.dart';
 import 'widgets/category_avatar.dart';
-import 'widgets/spending_charts.dart';
+import 'widgets/month_picker.dart';
+import 'widgets/pressable.dart';
 
 const _weekdays = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -26,120 +27,174 @@ List<List<DateTime>> calendarWeeks(DateTime month) {
   ];
 }
 
-const _cellHeight = 78.0;
+Color? _weekdayColor(int column) => switch (column) {
+  0 => AppColors.sunday,
+  6 => AppColors.saturday,
+  _ => null,
+};
 
-/// 한 달 달력. 날짜 칸을 누르면 그 칸이 커지면서 그날 내역이 보인다.
-class CalendarScreen extends ConsumerWidget {
+/// 한 달 달력. 화면을 꽉 채우고, 날짜 칸을 누르면 그 칸이 커지면서 그날 내역이 보인다.
+class CalendarScreen extends ConsumerStatefulWidget {
   const CalendarScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CalendarScreen> createState() => _CalendarScreenState();
+}
+
+class _CalendarScreenState extends ConsumerState<CalendarScreen> {
+  bool _pickerOpen = false;
+
+  @override
+  Widget build(BuildContext context) {
     final month = ref.watch(selectedMonthProvider);
     final expenses = ref.watch(monthExpensesProvider).value ?? const [];
-    final categories = {
-      for (final c in ref.watch(categoriesProvider).value ?? const <Category>[])
-        c.id: c,
-    };
+    final pickerMonths = ref.watch(pickerMonthsProvider).value ?? const [];
+    // 날짜를 눌렀을 때 바로 카테고리 이름이 보이도록 미리 불러 둔다
+    ref.watch(categoriesProvider);
+    final theme = Theme.of(context);
 
-    final byDay = <int, List<Expense>>{};
+    final totalsByDay = <int, int>{};
     for (final e in expenses) {
-      byDay.putIfAbsent(e.spentAt.day, () => []).add(e);
+      totalsByDay[e.spentAt.day] = (totalsByDay[e.spentAt.day] ?? 0) + e.amount;
     }
     final monthTotal = expenses.fold<int>(0, (s, e) => s + e.amount);
     final weeks = calendarWeeks(month);
-    final theme = Theme.of(context);
-    const border = BorderSide(color: AppColors.line);
+    final notifier = ref.read(selectedMonthProvider.notifier);
 
     return Scaffold(
       appBar: AppBar(
+        centerTitle: true,
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
+              tooltip: '이전 달',
               icon: const Icon(Icons.chevron_left),
-              onPressed: () =>
-                  ref.read(selectedMonthProvider.notifier).previous(),
+              onPressed: notifier.previous,
             ),
-            Text(formatMonth(month)),
+            MonthDropdownButton(
+              month: month,
+              expanded: _pickerOpen,
+              onTap: () => setState(() => _pickerOpen = !_pickerOpen),
+            ),
             IconButton(
+              tooltip: '다음 달',
               icon: const Icon(Icons.chevron_right),
-              onPressed: () => ref.read(selectedMonthProvider.notifier).next(),
+              onPressed: notifier.next,
             ),
           ],
         ),
-        centerTitle: true,
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+      body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
-            child: Row(
-              children: [
-                Text('이번 달 합계', style: theme.textTheme.titleSmall),
-                const Spacer(),
-                Text(
-                  formatWon(monthTotal),
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
+          MonthPickerPanel(
+            open: _pickerOpen,
+            months: pickerMonths,
+            selected: month,
+            onSelected: (m) {
+              notifier.select(m);
+              setState(() => _pickerOpen = false);
+            },
           ),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: AppColors.paper,
-              border: Border.all(color: AppColors.line),
-            ),
-            child: Column(
+          Expanded(
+            child: Stack(
               children: [
-                // 요일 머리줄
-                Container(
-                  color: AppColors.peach,
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  child: Row(
-                    children: [
-                      for (final w in _weekdays)
-                        Expanded(
-                          child: Center(
-                            child: Text(
-                              w,
-                              style: theme.textTheme.labelLarge?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                for (var w = 0; w < weeks.length; w++)
-                  Row(
-                    children: [
-                      for (var d = 0; d < 7; d++)
-                        Expanded(
-                          child: Container(
-                            height: _cellHeight,
-                            decoration: BoxDecoration(
-                              border: Border(
-                                top: border,
-                                left: d == 0 ? BorderSide.none : border,
-                              ),
-                            ),
-                            child: weeks[w][d].month != month.month
-                                ? _OtherMonthCell(day: weeks[w][d])
-                                : _DayCell(
-                                    key: ValueKey('day-${dateKey(weeks[w][d])}'),
-                                    day: weeks[w][d],
-                                    expenses:
-                                        byDay[weeks[w][d].day] ?? const [],
-                                    categories: categories,
+                Column(
+                  children: [
+                    // 요일 줄
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 6, 4, 6),
+                      child: Row(
+                        children: [
+                          for (var i = 0; i < 7; i++)
+                            Expanded(
+                              child: Center(
+                                child: Text(
+                                  _weekdays[i],
+                                  style: theme.textTheme.labelMedium?.copyWith(
+                                    color:
+                                        _weekdayColor(i) ?? AppColors.textSub,
                                   ),
-                          ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    // 남은 높이를 주(週) 수로 나눠 꽉 채운다
+                    Expanded(
+                      child: Column(
+                        children: [
+                          for (final week in weeks)
+                            Expanded(
+                              child: DecoratedBox(
+                                decoration: const BoxDecoration(
+                                  border: Border(
+                                    bottom: BorderSide(color: AppColors.line),
+                                  ),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 2,
+                                    vertical: 3,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      for (var d = 0; d < 7; d++)
+                                        Expanded(
+                                          child: week[d].month != month.month
+                                              ? _OtherMonthCell(day: week[d])
+                                              : _DayCell(
+                                                  key: ValueKey(
+                                                    'day-${dateKey(week[d])}',
+                                                  ),
+                                                  day: week[d],
+                                                  column: d,
+                                                  total:
+                                                      totalsByDay[week[d]
+                                                          .day] ??
+                                                      0,
+                                                ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    // 이번 달 합계
+                    SafeArea(
+                      top: false,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                        child: Row(
+                          children: [
+                            Text('이번 달 합계', style: theme.textTheme.titleSmall),
+                            const Spacer(),
+                            Text(
+                              formatWon(monthTotal),
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
-                    ],
+                      ),
+                    ),
+                  ],
+                ),
+                // 달 목록이 열려 있으면 바깥을 눌러 닫는다
+                if (_pickerOpen)
+                  Positioned.fill(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _pickerOpen = false),
+                      child: ColoredBox(
+                        color: AppColors.text.withValues(alpha: 0.12),
+                      ),
+                    ),
                   ),
               ],
             ),
@@ -150,7 +205,7 @@ class CalendarScreen extends ConsumerWidget {
   }
 }
 
-/// 앞뒤 달 날짜: 흐린 숫자만.
+/// 앞뒤 달 날짜: 흐린 숫자만, 누를 수 없음.
 class _OtherMonthCell extends StatelessWidget {
   const _OtherMonthCell({required this.day});
 
@@ -159,9 +214,9 @@ class _OtherMonthCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Align(
-      alignment: Alignment.topRight,
+      alignment: Alignment.topCenter,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(4, 6, 6, 4),
+        padding: const EdgeInsets.only(top: 6),
         child: Text(
           '${day.day}',
           style: Theme.of(context).textTheme.labelMedium
@@ -172,17 +227,18 @@ class _OtherMonthCell extends StatelessWidget {
   }
 }
 
+/// 이번 달 날짜 칸: 날짜 아래에 그날 합계. 쓴 돈이 없으면 숫자만 있는 흰 칸.
 class _DayCell extends StatelessWidget {
   const _DayCell({
     super.key,
     required this.day,
-    required this.expenses,
-    required this.categories,
+    required this.column,
+    required this.total,
   });
 
   final DateTime day;
-  final List<Expense> expenses;
-  final Map<int?, Category> categories;
+  final int column;
+  final int total;
 
   @override
   Widget build(BuildContext context) {
@@ -190,68 +246,47 @@ class _DayCell extends StatelessWidget {
     final now = DateTime.now();
     final isToday =
         day.year == now.year && day.month == now.month && day.day == now.day;
-    final total = expenses.fold<int>(0, (s, e) => s + e.amount);
-    // 그날 쓴 카테고리 색 점 (최대 3개)
-    final dotColors = <Color>{
-      for (final e in expenses) categoryColor(categories[e.categoryId]),
-    }.take(3);
 
-    return Material(
-      color: isToday ? AppColors.selectedCell : Colors.transparent,
-      child: InkWell(
-        onTap: () => _openDay(context, day),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(3, 6, 6, 5),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
+    return Pressable(
+      onTap: () => _openDay(context, day),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(2, 4, 2, 4),
+        child: Column(
+          children: [
+            Container(
+              width: 24,
+              height: 24,
+              alignment: Alignment.center,
+              decoration: isToday
+                  ? const BoxDecoration(
+                      color: AppColors.peachDeep,
+                      shape: BoxShape.circle,
+                    )
+                  : null,
+              child: Text(
                 '${day.day}',
-                textAlign: TextAlign.right,
                 style: theme.textTheme.labelMedium?.copyWith(
-                  color: AppColors.textSub,
+                  color: isToday
+                      ? Colors.white
+                      : _weekdayColor(column) ?? AppColors.text,
                   fontWeight: isToday ? FontWeight.bold : null,
                 ),
               ),
-              const Spacer(),
-              if (total > 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 3,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.peachLight,
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      compactWon(total),
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: AppColors.peachText,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+            ),
+            if (total > 0) ...[
+              const SizedBox(height: 4),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  formatAmount(total),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: AppColors.peachText,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  for (final c in dotColors)
-                    Container(
-                      width: 5,
-                      height: 5,
-                      margin: const EdgeInsets.only(left: 2),
-                      decoration: BoxDecoration(
-                        color: c,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                ],
               ),
             ],
-          ),
+          ],
         ),
       ),
     );
