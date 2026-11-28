@@ -1,6 +1,6 @@
 # 사진 가계부 (budget_app)
 
-영수증이나 쇼핑앱 결제 화면 **사진으로 지출을 기록**하는 안드로이드 가계부 앱입니다.
+영수증이나 쇼핑앱 결제 화면 **사진으로 지출을 기록**하는 가계부 앱입니다. (안드로이드, 아이폰)
 
 - Flutter로 만들었습니다.
 - 데이터는 폰 안(SQLite)에만 저장합니다.
@@ -85,6 +85,13 @@
    flutter run
    ```
 5. 테스트: `flutter test`
+
+<br>
+
+## 아이폰에서 실행하기
+
+Mac이 없어도 됩니다. GitHub Actions가 아이폰용 파일을 만들고, Windows의 Sideloadly로 아이폰에 설치합니다.
+자세한 순서는 [docs/iphone-test.md](docs/iphone-test.md)를 보세요.
 
 <br>
 

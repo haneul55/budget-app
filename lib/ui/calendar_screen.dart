@@ -176,7 +176,7 @@ class _OtherMonthCell extends StatelessWidget {
 }
 
 /// 이번 달 날짜 칸: 날짜 아래에 그날 합계. 쓴 돈이 없으면 숫자만 있는 흰 칸.
-class _DayCell extends StatelessWidget {
+class _DayCell extends ConsumerWidget {
   const _DayCell({
     super.key,
     required this.day,
@@ -189,9 +189,27 @@ class _DayCell extends StatelessWidget {
   final int total;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final now = DateTime.now();
+    // 영수증을 막 저장한 날이면, 화면 전환이 끝난 뒤 이 칸에서 그날 내역을 펼친다
+    final requested = ref.watch(
+      openDayRequestProvider.select(
+        (d) =>
+            d != null &&
+            d.year == day.year &&
+            d.month == day.month &&
+            d.day == day.day,
+      ),
+    );
+    if (requested) {
+      Future.delayed(const Duration(milliseconds: 350), () {
+        if (!context.mounted) return;
+        if (ref.read(openDayRequestProvider) == null) return;
+        ref.read(openDayRequestProvider.notifier).clear();
+        _openDay(context, day);
+      });
+    }
     final isToday =
         day.year == now.year && day.month == now.month && day.day == now.day;
 

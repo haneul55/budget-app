@@ -38,6 +38,19 @@ class CurrentTab extends Notifier<AppTab> {
 
 final currentTabProvider = NotifierProvider<CurrentTab, AppTab>(CurrentTab.new);
 
+/// 달력에서 열어 달라고 요청한 날 (영수증 저장 직후 그날로 이동할 때). 열고 나면 null.
+class OpenDayRequest extends Notifier<DateTime?> {
+  @override
+  DateTime? build() => null;
+
+  void request(DateTime day) => state = DateTime(day.year, day.month, day.day);
+  void clear() => state = null;
+}
+
+final openDayRequestProvider = NotifierProvider<OpenDayRequest, DateTime?>(
+  OpenDayRequest.new,
+);
+
 final categoriesProvider = FutureProvider<List<Category>>(
   (ref) => ref.watch(databaseProvider).categories(),
 );
