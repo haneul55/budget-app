@@ -5,7 +5,7 @@
 - Flutter로 만들었습니다.
 - 데이터는 폰 안(SQLite)에만 저장합니다.
 - 글자 인식도 폰 안에서 해서, 사진이 밖으로 나가지 않습니다.
-- (선택) AI 자동 분류를 켜면 분류 못 한 품목 이름만 내 서버를 거쳐 AI에 보냅니다.
+- (선택) AI 자동 분류를 켜면 분류 못 한 품목 이름만 AI(Claude)에 보냅니다.
 
 <br>
 
@@ -60,10 +60,11 @@
 
 - 키워드 규칙(직접 고쳐서 배운 규칙 포함)으로 분류하지 못한 품목만 AI(Claude Haiku 5.5)가 내 카테고리 중 하나를 골라 줌
 - 품목 이름·구매처·카테고리 이름만 보내고, 사진과 금액은 보내지 않음
-- API 키는 앱이 아니라 내 Cloudflare Worker(`proxy/` 폴더)에만 둠
 - AI가 고른 카테고리를 그대로 저장하면 키워드로 기억해서 다음부터는 AI 없이 바로 분류
 - 설정: 카테고리 관리 → AI 자동 분류. 비워 두거나 인터넷이 없으면 키워드 규칙으로만 분류
-- 서버 만드는 방법: [proxy/README.md](proxy/README.md)
+- 켜는 방법은 두 가지
+  - **API 키 직접 (시험용, 간단)**: 앱에 Anthropic API 키를 넣으면 앱이 Claude를 바로 부름. 키는 폰의 안전한 저장소에만 저장 → [docs/ai-api-key.md](docs/ai-api-key.md)
+  - **내 서버 (나눠 줄 때)**: API 키는 내 Cloudflare Worker에만 둠 → [proxy/README.md](proxy/README.md)
 
 <br>
 
